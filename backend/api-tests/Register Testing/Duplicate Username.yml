@@ -1,0 +1,32 @@
+info:
+  name: Duplicate Username
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: http://localhost:5001/api/auth/register
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "firstName": "Another",
+        "lastName": "Student",
+        "login": "teststudent1027",
+        "email": "anotherstudent1027@example.com",
+        "password": "ExamplePassword456!",
+        "degree": "Bachelor of Science",
+        "major": "Computer Science",
+        "graduationYear": 2027
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

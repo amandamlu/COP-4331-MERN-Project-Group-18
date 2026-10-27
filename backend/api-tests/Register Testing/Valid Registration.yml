@@ -1,0 +1,47 @@
+info:
+  name: "Valid Registration "
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/auth/register"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "firstName": "Test",
+        "lastName": "Student",
+        "login": "teststudent1027",
+        "email": "teststudent1027@example.com",
+        "password": "ExamplePassword123!",
+        "degree": "Bachelor of Science",
+        "major": "Computer Science",
+        "graduationYear": 2027
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  ### Valid Registration — Instructions
+
+  This request tests the creation of a new user account through `POST /api/auth/register`.
+
+  **Before running this request:**
+
+  - Change the `login` field to a username that has not been registered.
+  - Change the `email` field to an email address that has not been registered.
+  - Make sure all required fields are filled in: `firstName`, `lastName`, `login`, `email`, and `password`.
+
+  **Expected response:** `201 Created` — User registered successfully.
+
+  **Note:** If the username or email has already been registered, the API will return `409 Conflict` with the message "Username or email already registered". This is expected behavior, not an API failure.
