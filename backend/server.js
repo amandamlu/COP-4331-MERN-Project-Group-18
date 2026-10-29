@@ -25,6 +25,12 @@ app.get("/api/ping", (req, res) => {
     res.status(200).json({message: "Hello World"}); 
 });
 
+// with the other route imports
+const logInRoutes = require("./routes/logIn");
+
+// under the registration endpoint
+app.use("/api/auth", logInRoutes);
+
 // Error Handling
 app.use(notFound); 
 app.use(errorHandler); 

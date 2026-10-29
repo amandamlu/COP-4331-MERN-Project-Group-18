@@ -1,0 +1,38 @@
+info:
+  name: Successful Login
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: http://localhost:5001/api/auth/login
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "login": "logintestuser",
+        "password": "TestPass123!"
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: 200
+    - expression: res.body.token
+      operator: isString
+  scripts:
+    - type: after-response
+      code: |-
+        bru.setVar("authToken", res.body.token);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

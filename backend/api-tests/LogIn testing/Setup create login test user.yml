@@ -1,0 +1,32 @@
+info:
+  name: Setup Create Login Test User
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:5001/api/auth/register
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "firstName": "Login",
+        "lastName": "Tester",
+        "login": "logintestuser",
+        "email": "logintestuser@example.com",
+        "password": "TestPass123!",
+        "degree": "Bachelor of Science",
+        "major": "Computer Science",
+        "graduationYear": 2027
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
