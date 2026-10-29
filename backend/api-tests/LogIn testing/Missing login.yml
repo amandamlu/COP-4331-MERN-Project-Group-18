@@ -1,0 +1,31 @@
+info:
+  name: Missing Login
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: http://localhost:5001/api/auth/login
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "password": "TestPass123!"
+      }
+  auth: inherit
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: 400
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
