@@ -26,7 +26,7 @@ app.get("/api/ping", (req, res) => {
 });
 
 // with the other route imports
-const logInRoutes = require("./routes/logIn");
+const logInRoutes = require("./routes/login");
 
 // under the registration endpoint
 app.use("/api/auth", logInRoutes);
