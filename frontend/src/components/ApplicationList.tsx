@@ -65,4 +65,3 @@ function ApplicationList({ applications, onDelete }: ApplicationListProps) {
 }
 
 export default ApplicationList;
-
