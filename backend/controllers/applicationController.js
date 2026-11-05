@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Application = require('../models/Application');
+const Contact = require('../models/Contact');
 
 // Fields a client may set. UserId is excluded on purpose: it always comes
 // from the verified token, never from the request body.
@@ -225,7 +226,17 @@ exports.deleteApplication = async (req, res) => {
     const application = await Application.findOneAndDelete({ _id: id, UserId: req.user.id });
     if (!application) return res.status(404).json({ error: 'Application not found.' });
 
-    return res.status(200).json({ message: 'Application deleted.', id });
+    // Remove the contacts that belonged to this application so none are orphaned
+    const { deletedCount } = await Contact.deleteMany({
+      ApplicationId: id,
+      UserId: req.user.id,
+    });
+
+    return res.status(200).json({
+      message: 'Application deleted.',
+      id,
+      contactsDeleted: deletedCount,
+    });
   } catch (err) {
     return handleError(err, res, 'deleteApplication');
   }

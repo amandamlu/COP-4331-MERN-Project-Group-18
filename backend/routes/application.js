@@ -15,6 +15,7 @@ const {
 // Every application route requires a logged-in user
 router.use(verifyToken);
 
+router.use('/:id/contacts', contactRoutes);
 router.post('/', createApplication);          // #6  Create
 router.get('/', getApplications);             // #7  List (+ #11 search & filtering via query params)
 router.get('/:id', getApplicationById);       // #8  Retrieve one
