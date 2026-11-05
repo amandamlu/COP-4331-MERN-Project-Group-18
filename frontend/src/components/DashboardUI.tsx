@@ -92,7 +92,11 @@ function DashboardUI() {
         />
         <div className="navbar-nav">
           <div className="nav-item text-nowrap">
-            <a className="nav-link px-3" href="/">
+            <a
+              className="nav-link px-3"
+              href="/login"
+              onClick={() => sessionStorage.removeItem('authToken')}
+            >
               Sign out
             </a>
           </div>

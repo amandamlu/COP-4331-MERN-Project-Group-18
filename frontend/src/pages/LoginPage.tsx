@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom';
-import PageTitle from '../components/PageTitle';
 import { useState } from 'react';
 import type { SubmitEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -55,8 +53,6 @@ const LoginPage = () => {
 
   return (
     <div className="container app-container py-3">
-      <PageTitle />
-
       <main className="mx-auto mt-4" style={{ maxWidth: '420px' }}>
         <h2 className="text-center mb-4">Sign In</h2>
 
