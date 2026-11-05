@@ -1,0 +1,34 @@
+info:
+  name: "List - all applications"
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/applications"
+  headers:
+    - name: Authorization
+      value: "Bearer {{token}}"
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("returns 200", function () {
+          expect(res.status).to.equal(200);
+        });
+
+        test("has pagination envelope", function () {
+          expect(res.body.data).to.be.an("array");
+          expect(res.body).to.include.keys("page", "limit", "total", "totalPages");
+          expect(res.body.page).to.equal(1);
+          expect(res.body.limit).to.equal(20);
+        });
+
+        test("only returns this user's applications", function () {
+          const uid = bru.getVar("userId");
+          res.body.data.forEach(a => expect(a.UserId).to.equal(uid));
+        });
+
+settings:
+  encodeUrl: true

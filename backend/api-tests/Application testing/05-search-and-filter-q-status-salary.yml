@@ -1,0 +1,32 @@
+info:
+  name: "Search and filter - q + status + salary"
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/applications?q=Bruno Test&status=Applied&minSalary=39&maxSalary=41&sortBy=DateApplied&order=desc"
+  headers:
+    - name: Authorization
+      value: "Bearer {{token}}"
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("returns 200 and includes the created application", function () {
+          expect(res.status).to.equal(200);
+          expect(res.body.data.map(a => a._id)).to.include(bru.getVar("applicationId"));
+        });
+
+        test("every result satisfies all filters", function () {
+          res.body.data.forEach(a => {
+            expect(a.Status).to.equal("Applied");
+            expect(a.SalaryHourly).to.be.within(39, 41);
+            const hay = [a.Company, a.Role, a.Location, a.Notes].join(" ").toLowerCase();
+            expect(hay).to.include("bruno test");
+          });
+        });
+
+settings:
+  encodeUrl: true
