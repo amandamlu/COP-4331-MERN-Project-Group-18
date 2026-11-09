@@ -1,0 +1,58 @@
+info:
+  name: "Create - valid application"
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/applications"
+  headers:
+    - name: Authorization
+      value: "Bearer {{token}}"
+    - name: Content-Type
+      value: "application/json"
+  body:
+    type: json
+    data: |-
+      {
+        "Company": "Bruno Test Co",
+        "Role": "QA Engineering Intern",
+        "Location": "Orlando, FL",
+        "Status": "Applied",
+        "SalaryHourly": 40,
+        "DateApplied": "2026-11-01",
+        "JobLink": "https://example.com/jobs/123",
+        "Notes": "Created by Bruno test"
+      }
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        bru.setVar("applicationId", res.body._id);
+        bru.setVar("userId", res.body.UserId);
+    - type: tests
+      code: |-
+        test("returns 201", function () {
+          expect(res.status).to.equal(201);
+        });
+
+        test("echoes submitted fields", function () {
+          expect(res.body.Company).to.equal("Bruno Test Co");
+          expect(res.body.Role).to.equal("QA Engineering Intern");
+          expect(res.body.SalaryHourly).to.equal(40);
+          expect(res.body.Status).to.equal("Applied");
+        });
+
+        test("has _id, UserId and LastUpdated (YYYY-MM-DD)", function () {
+          expect(res.body._id).to.be.a("string");
+          expect(res.body.UserId).to.be.a("string");
+          expect(res.body.LastUpdated).to.match(/^\d{4}-\d{2}-\d{2}$/);
+        });
+
+        test("has no __v field", function () {
+          expect(res.body).to.not.have.property('__v');
+        });
+
+settings:
+  encodeUrl: true

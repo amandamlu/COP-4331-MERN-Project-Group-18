@@ -1,0 +1,23 @@
+info:
+  name: "Delete application - also deletes its contacts"
+  type: http
+  seq: 11
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/api/applications/{{contactAppId}}"
+  headers:
+    - name: Authorization
+      value: "Bearer {{token}}"
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("returns 200 and reports the contacts removed", function () {
+          expect(res.status).to.equal(200);
+          expect(res.body.contactsDeleted).to.equal(1);
+        });
+
+settings:
+  encodeUrl: true

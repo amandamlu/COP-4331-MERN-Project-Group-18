@@ -1,0 +1,50 @@
+info:
+  name: "Create contact - valid"
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/applications/{{contactAppId}}/contacts"
+  headers:
+    - name: Authorization
+      value: "Bearer {{token}}"
+    - name: Content-Type
+      value: "application/json"
+  body:
+    type: json
+    data: |-
+      {
+        "Name": "Jane Recruiter",
+        "Role": "Technical Recruiter",
+        "Company": "Bruno Contact Co",
+        "Email": "Jane@Example.com",
+        "Phone": "407-555-0100",
+        "NextFollowUp": "2026-11-15"
+      }
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        bru.setVar("contactId", res.body._id);
+    - type: tests
+      code: |-
+        test("returns 201", function () {
+          expect(res.status).to.equal(201);
+        });
+
+        test("is linked to the application and echoes fields", function () {
+          expect(res.body.ApplicationId).to.equal(bru.getVar("contactAppId"));
+          expect(res.body.UserId).to.be.a("string");
+          expect(res.body.Name).to.equal("Jane Recruiter");
+          expect(res.body.Email).to.equal("jane@example.com");
+          expect(res.body.NextFollowUp).to.equal("2026-11-15");
+        });
+
+        test("has no __v field", function () {
+          expect(res.body).to.not.have.property('__v');
+        });
+
+settings:
+  encodeUrl: true

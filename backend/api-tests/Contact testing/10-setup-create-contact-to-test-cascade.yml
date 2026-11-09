@@ -1,0 +1,30 @@
+info:
+  name: "Setup - create contact to test cascade"
+  type: http
+  seq: 10
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/applications/{{contactAppId}}/contacts"
+  headers:
+    - name: Authorization
+      value: "Bearer {{token}}"
+    - name: Content-Type
+      value: "application/json"
+  body:
+    type: json
+    data: |-
+      {
+        "Name": "Cascade Contact"
+      }
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("returns 201", function () {
+          expect(res.status).to.equal(201);
+        });
+
+settings:
+  encodeUrl: true
