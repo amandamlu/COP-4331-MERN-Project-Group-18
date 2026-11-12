@@ -26,8 +26,6 @@ const SORTABLE_FIELDS = [
 
 const STATUS_VALUES = Application.schema.path('Status').enumValues;
 
-const today = () => new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Pick allowed fields from the body and trim strings
@@ -62,7 +60,6 @@ exports.createApplication = async (req, res) => {
     }
 
     data.UserId = req.user.id;
-    data.LastUpdated = today();
 
     const application = await Application.create(data);
     return res.status(201).json(application);
@@ -170,6 +167,58 @@ exports.getApplications = async (req, res) => {
   }
 };
 
+// GET /api/applications/stats
+exports.getApplicationStats = async (req, res) => {
+  try {
+    const userId = req.user.sub; 
+
+    const stats = await Application.aggregate([
+      {
+        $match: {
+          UserId: new mongoose.Types.ObjectId(userId)
+        }
+      }, 
+
+      {
+        $group: {
+          _id: '$Status', 
+          count: {$sum: 1}
+        }
+      }
+    ]);
+
+    const applicationsByStatus = {
+      Applied: 0, 
+      Interviewing: 0, 
+      Offer: 0, 
+      Rejected: 0, 
+      Withdrawn: 0
+    };
+
+    for (const stat of stats) {
+      if (Object.hasOwn(applicationsByStatus, stat._id)) {
+        applicationsByStatus[stat._id] = stat.count;
+      }
+    }
+
+    const totalApplications = Object.values(
+      applicationsByStatus
+    ).reduce((sum, count) => sum + count, 0);
+    
+
+    return res.status(200).json({
+      totalApplications, 
+      interviewing: applicationsByStatus.Interviewing, 
+      offers: applicationsByStatus.Offer, 
+      applicationsByStatus
+    });
+
+
+  } catch (err) {
+    return handleError(err, res, 'getApplicationStats'); 
+  }
+}
+
 // GET /api/applications/:id
 exports.getApplicationById = async (req, res) => {
   try {
@@ -201,8 +250,6 @@ exports.updateApplication = async (req, res) => {
     if ('Role' in updates && !updates.Role) {
       return res.status(400).json({ error: 'Role cannot be blank.' });
     }
-
-    updates.LastUpdated = today();
 
     const application = await Application.findOneAndUpdate(
       { _id: id, UserId: req.user.id },

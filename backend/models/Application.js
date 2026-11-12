@@ -28,6 +28,11 @@ const applicationSchema = new mongoose.Schema(
       required: [true, 'Company is required'],
       trim: true,
     },
+    CompanyId: {
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'Company', 
+      index: true,
+    }, 
     Role: {
       type: String,
       required: [true, 'Role is required'],
@@ -62,16 +67,19 @@ const applicationSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    LastUpdated: {
-      type: String,
-      match: [DATE_STRING, 'LastUpdated must be in YYYY-MM-DD format'],
-    },
   },
+
   {
     // Use the existing collection name instead of Mongoose's default "applications"
     collection: 'Applications',
     versionKey: false,
+
+    timestamps: {
+      createdAt: false, 
+      updatedAt: 'LastUpdated',
+    },
   }
+
 );
 
 module.exports = mongoose.model('Application', applicationSchema);

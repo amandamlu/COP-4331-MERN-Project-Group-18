@@ -29,12 +29,17 @@ app.get("/api/ping", (req, res) => {
 const logInRoutes = require("./routes/login");
 
 // user Route
-const userRoutes = require('./routes/userProfile'); 
+const userRoutes = require('./routes/userProfile');
+
+// application route
+const applicationRoutes = require('./routes/application')
 
 // under the registration endpoint
 app.use("/api/auth", logInRoutes);
 
 app.use("/api/users", userRoutes); 
+
+app.use("/api/applications", applicationRoutes); 
 
 // Error Handling
 app.use(notFound); 
