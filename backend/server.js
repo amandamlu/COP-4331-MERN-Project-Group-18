@@ -34,12 +34,17 @@ const userRoutes = require('./routes/userProfile');
 // application route
 const applicationRoutes = require('./routes/application')
 
+// dashboard route
+const dashboardRoutes = require('./routes/dashboard');
+
 // under the registration endpoint
 app.use("/api/auth", logInRoutes);
 
 app.use("/api/users", userRoutes); 
 
 app.use("/api/applications", applicationRoutes); 
+
+app.use("/api/dashboard", dashboardRoutes); 
 
 // Error Handling
 app.use(notFound); 

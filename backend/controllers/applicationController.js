@@ -219,6 +219,29 @@ exports.getApplicationStats = async (req, res) => {
   }
 }
 
+// GET /api/applications/recent
+exports.getRecentApplications = async (req, res) => {
+  try {
+    const userId = req.user.id; 
+
+    const limit = 5; 
+
+    const applications = await Application.find({
+      UserId: userId
+    })
+      .sort({LastUpdated: -1, _id: -1})
+      .limit(limit)
+
+    return res.status(200).json({
+      data: applications, 
+      count: applications.length
+    }); 
+    
+  } catch (err) {
+    return handleError(err, res, 'getRecentApplications'); 
+  }
+};
+
 // GET /api/applications/:id
 exports.getApplicationById = async (req, res) => {
   try {
