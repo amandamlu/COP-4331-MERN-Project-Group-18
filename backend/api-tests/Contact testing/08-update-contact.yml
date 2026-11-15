@@ -1,0 +1,39 @@
+info:
+  name: "Update contact"
+  type: http
+  seq: 8
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/applications/{{contactAppId}}/contacts/{{contactId}}"
+  headers:
+    - name: Authorization
+      value: "Bearer {{token}}"
+    - name: Content-Type
+      value: "application/json"
+  body:
+    type: json
+    data: |-
+      {
+        "Phone": "407-555-0199",
+        "NextFollowUp": "2026-12-01",
+        "ApplicationId": "000000000000000000000001"
+      }
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("returns 200 and applies the change", function () {
+          expect(res.status).to.equal(200);
+          expect(res.body.Phone).to.equal("407-555-0199");
+          expect(res.body.NextFollowUp).to.equal("2026-12-01");
+          expect(res.body.Name).to.equal("Jane Recruiter");
+        });
+
+        test("ApplicationId is unchanged", function () {
+          expect(res.body.ApplicationId).to.equal(bru.getVar('contactAppId'));
+        });
+
+settings:
+  encodeUrl: true

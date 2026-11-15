@@ -28,8 +28,28 @@ app.get("/api/ping", (req, res) => {
 // with the other route imports
 const logInRoutes = require("./routes/login");
 
+// user Route
+const userRoutes = require('./routes/userProfile');
+
+// application route
+const applicationRoutes = require('./routes/application');
+
+// dashboard route
+const dashboardRoutes = require('./routes/dashboard');
+
+// All contacts route
+const allContactsRoutes = require('./routes/allContacts'); 
+
 // under the registration endpoint
 app.use("/api/auth", logInRoutes);
+
+app.use("/api/users", userRoutes); 
+
+app.use("/api/applications", applicationRoutes); 
+
+app.use("/api/dashboard", dashboardRoutes); 
+
+app.use('/api/contacts', allContactsRoutes); 
 
 // Error Handling
 app.use(notFound); 
