@@ -41,6 +41,7 @@ const loadOwnedApplication = async (req, res) => {
   return application;
 };
 
+// This gets contacts BASED on the application associated
 // GET /api/applications/:id/contacts
 exports.getContacts = async (req, res) => {
   try {
@@ -136,3 +137,75 @@ exports.deleteContact = async (req, res) => {
     return handleError(err, res, 'deleteContact');
   }
 };
+
+/*
+- This section will work with returning ALL contacts
+- Will be a separate section in the website
+*/
+
+// GET /api/contacts
+exports.getAllContacts = async (req, res) => {
+  try {
+    const userId = req.user.id; 
+
+    const {q, company, role} = req.query; 
+
+    const filter = {
+      UserId: userId
+    }; 
+
+    // Search across contact fields
+    if (typeof q === 'string' && q.trim()) {
+      const escaped = q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const search = new RegExp(escaped, 'i'); 
+
+      filter.$or = [
+        {Name: search}, 
+        {Company: search}, 
+        {Role: search}, 
+        {Email: search}
+      ]; 
+    }
+
+    if (typeof company === 'string' && company.trim()) {
+      const escaped = company.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.Company = new RegExp(escaped, 'i'); 
+    }
+
+    if (typeof role === 'string' && role.trim()) {
+      const escaped = role.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.Role = new RegExp(escaped, 'i'); 
+    }
+
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit, 10) || 20, 1), 
+      100
+    ); 
+
+    const [contacts, total] = await Promise.all([
+      Contact.find(filter)
+        .populate('ApplicationId', 'Company Role Status')
+        .sort({Name: 1, _id: 1})
+        .skip((page -1) * limit)
+        .limit(limit),
+
+      Contact.countDocuments(filter)
+    ]); 
+
+    return res.status(200).json({
+      data: contacts, 
+      page, 
+      limit, 
+      total, 
+      totalPages: Math.ceil(total/limit)
+    }); 
+
+  } catch (err) {
+    console.error('getAllContacts error:', err); 
+
+    return res.status(500).json({
+      error: 'Server error.'
+    }); 
+  }
+}; 

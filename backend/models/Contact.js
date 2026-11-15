@@ -17,6 +17,11 @@ const contactSchema = new mongoose.Schema(
       required: [true, 'ApplicationId is required'],
       index: true,
     },
+    CompanyId: {
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'Company', 
+      index: true,
+    }, 
     Name: {
       type: String,
       required: [true, 'Name is required'],
@@ -39,6 +44,11 @@ const contactSchema = new mongoose.Schema(
   {
     collection: 'Contacts', // match the existing, seeded collection name
     versionKey: false,      // no __v, so documents match the seeded shape
+
+    timestamps: {
+      createdAt: false, 
+      updatedAt: 'LastUpdated',
+    },
   }
 );
 
