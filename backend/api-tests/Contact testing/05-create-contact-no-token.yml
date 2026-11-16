@@ -1,0 +1,28 @@
+info:
+  name: "Create contact - no token"
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/applications/{{contactAppId}}/contacts"
+  headers:
+    - name: Content-Type
+      value: "application/json"
+  body:
+    type: json
+    data: |-
+      {
+        "Name": "No Token"
+      }
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("rejected with 401/403", function () {
+          expect([401, 403]).to.include(res.status);
+        });
+
+settings:
+  encodeUrl: true

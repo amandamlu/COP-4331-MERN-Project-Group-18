@@ -1,0 +1,40 @@
+info:
+  name: "Update - change Status"
+  type: http
+  seq: 8
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/applications/{{applicationId}}"
+  headers:
+    - name: Authorization
+      value: "Bearer {{token}}"
+    - name: Content-Type
+      value: "application/json"
+  body:
+    type: json
+    data: |-
+      {
+        "Status": "Interviewing"
+      }
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("returns 200", function () {
+          expect(res.status).to.equal(200);
+        });
+
+        test("Status updated, other fields untouched", function () {
+          expect(res.body.Status).to.equal("Interviewing");
+          expect(res.body.Company).to.equal("Bruno Test Co");
+          expect(res.body.SalaryHourly).to.equal(40);
+        });
+
+        test("LastUpdated is refreshed", function () {
+          expect(res.body.LastUpdated).to.match(/^\d{4}-\d{2}-\d{2}$/);
+        });
+
+settings:
+  encodeUrl: true
