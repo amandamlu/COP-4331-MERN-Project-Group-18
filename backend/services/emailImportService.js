@@ -2,6 +2,7 @@ const { convert } = require('html-to-text');
 const EmailForwardingAddress = require('../models/EmailForwardingAddress');
 const EmailImport = require('../models/EmailImport');
 const User = require('../models/User');
+const { parseEmail } = require('./emailParser');
 
 const MAX_BODY_LENGTH = 100_000;
 
@@ -26,6 +27,10 @@ async function resolveImportOwner(recipients) {
 
 async function savePendingImport({ userId, emailId, email }) {
   const body = email.text?.trim() || (email.html ? convert(email.html, { wordwrap: false }) : '');
+  const bodyText = body.slice(0, MAX_BODY_LENGTH);
+  const bodyTruncated = body.length > MAX_BODY_LENGTH;
+  const parsed = parseEmail({ subject: email.subject, body: bodyText });
+  if (bodyTruncated) parsed.requiresReview = true;
   const importedAt = new Date();
   await EmailImport.init();
 
@@ -37,8 +42,9 @@ async function savePendingImport({ userId, emailId, email }) {
           UserId: userId,
           From: email.from,
           Subject: email.subject,
-          BodyText: body.slice(0, MAX_BODY_LENGTH),
-          BodyTruncated: body.length > MAX_BODY_LENGTH,
+          BodyText: bodyText,
+          BodyTruncated: bodyTruncated,
+          Parsed: parsed,
           Status: 'pending',
           CreatedAt: importedAt,
           LastUpdated: importedAt,

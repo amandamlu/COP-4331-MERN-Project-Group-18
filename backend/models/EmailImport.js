@@ -1,5 +1,16 @@
 const mongoose = require('mongoose');
 
+const parsedEmailSchema = new mongoose.Schema(
+  {
+    event: String,
+    status: String,
+    company: String,
+    role: String,
+    requiresReview: Boolean,
+  },
+  { _id: false },
+);
+
 const emailImportSchema = new mongoose.Schema(
   {
     UserId: {
@@ -12,6 +23,7 @@ const emailImportSchema = new mongoose.Schema(
     Subject: { type: String, default: '' },
     BodyText: { type: String, default: '' },
     BodyTruncated: { type: Boolean, default: false },
+    Parsed: parsedEmailSchema,
     Status: { type: String, enum: ['pending', 'approved', 'dismissed'], default: 'pending' },
   },
   {
