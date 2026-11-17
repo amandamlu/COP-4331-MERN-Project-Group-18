@@ -1,3 +1,4 @@
+[Internship_Tracker_Backend_README.md](https://github.com/user-attachments/files/34999574/Internship_Tracker_Backend_README.md)
 # Internship Tracker — Backend API Reference
 
 This README documents the Express/Mongoose API used by the Internship Tracker frontend. It is based on the endpoints and controller implementations shared during development. **Check the sections marked _Verify in code_ before treating this document as a complete API contract.**
@@ -59,6 +60,7 @@ Store the token securely for your app's design and clear it on logout or authent
 | `POST` | `/api/applications/:id/contacts` | Create a contact for one application | Yes |
 | `GET` | `/api/contacts` | Global searchable contact directory | Yes |
 | `GET` | `/api/dashboard/followups` | Next upcoming contact follow-ups | Yes |
+| `GET` | `/api/resources` | List shared career resources; optional category filtering and keyword search | Yes |
 
 **Additional routes:** User-profile endpoints, single-contact update/delete endpoints, company endpoints, internship-offer endpoints, and other auth actions are **not fully verified** from the files provided. See [Routes requiring confirmation](#routes-requiring-confirmation); do not assume paths or payloads until checked.
 
@@ -316,6 +318,93 @@ The controller uses `.populate('ApplicationId', 'Company Role Status')`. So an i
 
 The object above shows selected fields, not every contact field. The frontend should tolerate an unpopulated/missing application reference for old or inconsistent data, rather than assuming every populated object is present.
 
+## Resources
+
+### Browse, search, and filter — `GET /api/resources`
+
+Returns career-related links from the shared MongoDB `Resources` collection. Resources are **the same for every authenticated user**; the collection does not have a `UserId` and this endpoint does not apply user-specific filtering.
+
+The endpoint is **read-only** for users. Resource records are maintained by the team (for example, using `backend/scripts/seedResources.js`), rather than created or edited from the frontend.
+
+**Authentication:** Requires `Authorization: Bearer <JWT>`.
+
+**Query parameters** (both optional):
+
+| Query | Meaning | Example |
+|---|---|---|
+| `category` | Exact, case-sensitive match against the resource's `Category` field | `?category=Interview%20Preparation` |
+| `q` | Case-insensitive, partial text search across `Title` and `Description` | `?q=resume` |
+
+Both parameters can be combined. When combined, results must match the specified category **and** contain the search text in the title or description. Results are sorted by `Title` in ascending order (A–Z). Without parameters, all resources are returned.
+
+**Supported categories:**
+
+- `Finding Internships`
+- `Resumes and Applications`
+- `Interview Preparation`
+- `Career Development`
+
+**Resource document fields:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `_id` | MongoDB ObjectId/string | Server-generated identifier |
+| `Category` | string | One of the four supported categories |
+| `Title` | string | Resource title |
+| `Description` | string | Short description of the resource |
+| `URL` | string | External website URL |
+
+**Example request:**
+
+```http
+GET /api/resources?category=Interview%20Preparation&q=coding
+Authorization: Bearer <JWT_FROM_LOGIN>
+```
+
+**Example `200 OK` response:**
+
+```json
+{
+  "resources": [
+    {
+      "_id": "691b9d4c2f8a103e5c7d9210",
+      "Category": "Interview Preparation",
+      "Title": "LeetCode",
+      "Description": "Practice coding problems for technical interviews.",
+      "URL": "https://leetcode.com/"
+    }
+  ]
+}
+```
+
+The example `_id` and response document are illustrative. The exact data returned depends on the resources currently seeded in MongoDB.
+
+If nothing matches, the API returns `200 OK` with:
+
+```json
+{
+  "resources": []
+}
+```
+
+**Frontend usage** (with `API_BASE` ending in `/api`):
+
+```js
+const params = new URLSearchParams();
+if (selectedCategory) params.set('category', selectedCategory);
+if (searchText.trim()) params.set('q', searchText.trim());
+
+const query = params.toString();
+const { resources } = await apiFetch(
+  `/resources${query ? `?${query}` : ''}`,
+  { token }
+);
+```
+
+Use plain category names (for example, `Interview Preparation`) with `URLSearchParams`, which performs URL encoding automatically. **Do not pre-encode** spaces as `%20` when entering values in a query-parameter editor or passing them to `URLSearchParams`: double-encoding can cause an empty result. The frontend should render each resource as an external link and should not assume this endpoint is paginated.
+
+**Possible errors:** Missing JWT may return `401`; invalid or expired JWT may return `403`; unexpected database failures return `500` with `{ "message": "Failed to retrieve resources" }`.
+
 ## Common errors
 
 | Status | What it generally means |
@@ -330,41 +419,6 @@ The object above shows selected fields, not every contact field. The frontend sh
 | `500` | Backend/server error |
 
 Error responses are not perfectly uniform across controllers. Some use `{ "error": "..." }`, while the JWT middleware uses `{ "message": "..." }`. The sample fetch helper checks both.
-
-## Recommended frontend data flow
-
-1. Register or log in. Read the JWT and authenticated user details from the actual login response.
-2. Attach `Authorization: Bearer <token>` to every protected request.
-3. Dashboard page: request `/applications/stats`, `/applications/recent`, and `/dashboard/followups` in parallel.
-4. Applications page: use `/applications` with filters/pagination; create/edit/delete through POST/PATCH/DELETE.
-5. Application details: use `/applications/:id` and `/applications/:id/contacts`.
-6. Contacts directory: use `/contacts?q=...&page=...&limit=...`.
-7. After creating, editing, or deleting applications/contacts, refetch affected dashboard and list data. The API does **not** push updates to an open frontend automatically.
-8. On JWT expiration/auth errors, clear stale session state and ask the user to log in again.
-
-## Routes requiring confirmation
-
-Before advertising these as stable frontend endpoints, check the implementation in the repository:
-
-- `routes/userProfile.js`: exact profile read/update/delete paths, methods, bodies, and response shapes.
-- `routes/contact.js` and its controller: exact single-contact update/delete endpoints, success response envelopes, and whether `CompanyId` is accepted.
-- `routes/register.js`, `routes/login.js`: exact login/register request and response properties; verify `/api/auth/me` mounting.
-- Company and internship-offer routes: Mongoose models may exist without corresponding API endpoints. **Do not assume CRUD routes are available.**
-- Dashboard follow-ups and global contacts route registrations: confirm the corresponding routes are mounted in the server entry point on the branch/deployment being used.
-
-## Testing checklist (Bruno)
-
-- [ ] Login returns a JWT; authenticated requests succeed with `Authorization: Bearer {{token}}`.
-- [ ] GET `/api/applications/stats` changes after application create/update/delete.
-- [ ] GET `/api/applications/recent` lists the newest updated applications first (after legacy date migration).
-- [ ] GET `/api/dashboard/followups` returns upcoming contacts in date order.
-- [ ] GET `/api/contacts?q=...` searches across applications.
-- [ ] GET `/api/applications/:id/contacts` returns only that application's contacts.
-- [ ] User A cannot access User B's records.
-- [ ] Missing and expired JWTs are rejected.
-- [ ] Deleting an application removes its related contacts.
-
----
 
 **Maintenance:** Update this README when route paths, request field allowlists, response shapes, or model field types change. The implementation in `routes/`, `controllers/`, and `models/` remains the source of truth.
 
