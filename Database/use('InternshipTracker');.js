@@ -45,7 +45,7 @@ db.getCollection('Applications').insertMany([
     Company: "Texas Instruments",
     Role: "Applications Engineering Intern",
     Location: "Dallas, TX",
-    Status: "Offer",
+    Status: "Offgiter",
     SalaryHourly: 38,
     DateApplied: "2026-09-10",
     JobLink: "https://careers.ti.com/",
