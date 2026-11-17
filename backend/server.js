@@ -40,6 +40,8 @@ const dashboardRoutes = require('./routes/dashboard');
 // All contacts route
 const allContactsRoutes = require('./routes/allContacts'); 
 
+const resourceRoutes = require('./routes/resources');
+
 // under the registration endpoint
 app.use("/api/auth", logInRoutes);
 
@@ -50,6 +52,8 @@ app.use("/api/applications", applicationRoutes);
 app.use("/api/dashboard", dashboardRoutes); 
 
 app.use('/api/contacts', allContactsRoutes); 
+
+app.use('/api/resources', resourceRoutes); 
 
 // Error Handling
 app.use(notFound); 
