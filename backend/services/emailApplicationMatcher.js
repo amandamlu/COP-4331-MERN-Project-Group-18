@@ -19,7 +19,13 @@ function normalizeReference(value) {
   return typeof value === 'string' ? value.normalize('NFKC').trim().toUpperCase() : '';
 }
 
-async function matchEmailToApplication({ userId, parsed, bodyTruncated = false }) {
+function getStatusAction(currentStatus, proposedStatus) {
+  if (!VALID_STATUSES.has(proposedStatus)) return 'review';
+  if (currentStatus === proposedStatus) return 'none';
+  return FORWARD_TRANSITIONS.get(currentStatus)?.has(proposedStatus) ? 'update' : 'review';
+}
+
+async function matchEmailToApplication({ userId, parsed, bodyTruncated = false, session }) {
   if (!isObjectIdOrHexString(userId)) throw new TypeError('A valid application owner is required');
 
   const company = normalizeName(parsed.company);
@@ -35,6 +41,7 @@ async function matchEmailToApplication({ userId, parsed, bodyTruncated = false }
 
   const applications = await Application.find({ UserId: userId })
     .select('Company Role Status ReferenceNumber')
+    .session(session)
     .lean();
 
   function matched(application, reason) {
@@ -43,8 +50,9 @@ async function matchEmailToApplication({ userId, parsed, bodyTruncated = false }
     if (!proposedStatus || needsReview) {
       return { ...result, ...review('uncertain_email_details') };
     }
-    if (currentStatus === proposedStatus) return { ...result, action: 'none', reason: 'status_unchanged' };
-    if (!FORWARD_TRANSITIONS.get(currentStatus)?.has(proposedStatus)) {
+    const action = getStatusAction(currentStatus, proposedStatus);
+    if (action === 'none') return { ...result, action, reason: 'status_unchanged' };
+    if (action === 'review') {
       return { ...result, ...review('status_change_requires_review') };
     }
     return { ...result, action: 'update', reason };
@@ -80,4 +88,4 @@ async function matchEmailToApplication({ userId, parsed, bodyTruncated = false }
   return { action: 'create', reason: 'no_match', proposedStatus };
 }
 
-module.exports = { matchEmailToApplication };
+module.exports = { matchEmailToApplication, getStatusAction };

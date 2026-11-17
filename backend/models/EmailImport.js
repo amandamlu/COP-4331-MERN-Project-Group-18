@@ -7,6 +7,7 @@ const parsedEmailSchema = new mongoose.Schema(
     company: String,
     role: String,
     referenceNumber: String,
+    dateApplied: String,
     requiresReview: Boolean,
   },
   { _id: false },
@@ -38,6 +39,7 @@ const emailImportSchema = new mongoose.Schema(
     BodyTruncated: { type: Boolean, default: false },
     Parsed: parsedEmailSchema,
     Match: applicationMatchSchema,
+    ApplicationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Application' },
     Status: { type: String, enum: ['pending', 'approved', 'dismissed'], default: 'pending' },
   },
   {
