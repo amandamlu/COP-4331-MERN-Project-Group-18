@@ -3,6 +3,7 @@ const EmailForwardingAddress = require('../models/EmailForwardingAddress');
 const EmailImport = require('../models/EmailImport');
 const User = require('../models/User');
 const { parseEmail } = require('./emailParser');
+const { matchEmailToApplication } = require('./emailApplicationMatcher');
 
 const MAX_BODY_LENGTH = 100_000;
 
@@ -31,6 +32,7 @@ async function savePendingImport({ userId, emailId, email }) {
   const bodyTruncated = body.length > MAX_BODY_LENGTH;
   const parsed = parseEmail({ subject: email.subject, body: bodyText });
   if (bodyTruncated) parsed.requiresReview = true;
+  const match = await matchEmailToApplication({ userId, parsed, bodyTruncated });
   const importedAt = new Date();
   await EmailImport.init();
 
@@ -45,6 +47,7 @@ async function savePendingImport({ userId, emailId, email }) {
           BodyText: bodyText,
           BodyTruncated: bodyTruncated,
           Parsed: parsed,
+          Match: match,
           Status: 'pending',
           CreatedAt: importedAt,
           LastUpdated: importedAt,

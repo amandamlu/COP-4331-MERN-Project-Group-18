@@ -38,6 +38,7 @@ const ROLE_INTROS = [
 ];
 const APPLIED_TO = /\b(?:thanks|thank you) for applying to (?<company>.+?)(?: for (?:the |a |an )?(?<role>.+))?$/i;
 const ROLE_AT_COMPANY = /^(?<role>.+?) (?:at|with) (?<company>.+)$/i;
+const APPLICATION_REFERENCE = /\bapplication[ \t]+(?:ref(?:erence)?\.?[ \t]*(?:number|no\.?|id)?|number|no\.?|id)(?:[ \t]*[:#][ \t]*|[ \t]+)([a-z0-9][a-z0-9_/-]{0,79})(?![a-z0-9_/-])/gi;
 
 function originalMessage(subject, body) {
   const text = typeof body === 'string' ? body.replace(/\r\n?/g, '\n') : '';
@@ -120,11 +121,18 @@ function parseEmail({ subject, body } = {}) {
   }
 
   const [match] = matches.length === 1 ? matches : [];
+  // Use only explicitly labeled application IDs from the current message.
+  const references = new Set();
+  for (const [label, value] of `${statusSubject}\n${message.body}`.matchAll(APPLICATION_REFERENCE)) {
+    if (/[:#]/.test(label) || /\d/.test(value)) references.add(value.toUpperCase());
+  }
+
   return {
     event: match?.event ?? null,
     status: match?.status ?? null,
     ...details,
-    requiresReview: !match || !details.company || !details.role,
+    referenceNumber: references.size === 1 ? references.values().next().value : null,
+    requiresReview: !match || !details.company || !details.role || references.size > 1,
   };
 }
 

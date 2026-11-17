@@ -7,6 +7,7 @@ const Contact = require('../models/Contact');
 const ALLOWED_FIELDS = [
   'Company',
   'Role',
+  'ReferenceNumber',
   'Location',
   'Status',
   'SalaryHourly',

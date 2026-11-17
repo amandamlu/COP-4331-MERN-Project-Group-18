@@ -19,7 +19,7 @@ test('parses the original application confirmation from a Gmail forward', () => 
 
   assert.deepEqual(result, {
     event: 'application_confirmation', status: 'Applied',
-    company: 'Example Robotics', role: 'Software Engineering Intern', requiresReview: false,
+    company: 'Example Robotics', role: 'Software Engineering Intern', referenceNumber: null, requiresReview: false,
   });
 });
 
@@ -31,7 +31,7 @@ test('parses an Outlook interview forward with labeled fields', () => {
 
   assert.deepEqual(result, {
     event: 'interview_invitation', status: 'Interviewing',
-    company: 'Example Robotics', role: 'Software Engineering Intern', requiresReview: false,
+    company: 'Example Robotics', role: 'Software Engineering Intern', referenceNumber: null, requiresReview: false,
   });
 });
 
@@ -54,7 +54,7 @@ test('finds an explicit offer in the body', () => {
 
   assert.deepEqual(result, {
     event: 'offer', status: 'Offer',
-    company: 'Example Robotics', role: 'Data Science Intern', requiresReview: false,
+    company: 'Example Robotics', role: 'Data Science Intern', referenceNumber: null, requiresReview: false,
   });
 });
 
@@ -62,7 +62,8 @@ test('keeps missing company and role null even when a status is clear', () => {
   const result = parseEmail({ subject: 'Interview invitation', body: 'We would like to schedule an interview.' });
 
   assert.deepEqual(result, {
-    event: 'interview_invitation', status: 'Interviewing', company: null, role: null, requiresReview: true,
+    event: 'interview_invitation', status: 'Interviewing', company: null, role: null,
+    referenceNumber: null, requiresReview: true,
   });
 });
 
@@ -74,7 +75,7 @@ test('does not treat a company name in a confirmation subject as a role', () => 
 
   assert.deepEqual(result, {
     event: 'application_confirmation', status: 'Applied',
-    company: 'Example Robotics', role: null, requiresReview: true,
+    company: 'Example Robotics', role: null, referenceNumber: null, requiresReview: true,
   });
 });
 
@@ -114,4 +115,23 @@ test('does not classify nonhiring applications or career newsletters', () => {
     assert.equal(result.status, null);
     assert.equal(result.requiresReview, true);
   }
+});
+
+test('extracts a labeled application reference from the current email', () => {
+  const result = parseEmail({
+    subject: 'Interview invitation',
+    body: 'Application reference number: ar-4821\n\nOn Tue, Applicant wrote:\n> Application ID: old-001',
+  });
+
+  assert.equal(result.referenceNumber, 'AR-4821');
+});
+
+test('conflicting application reference numbers require review', () => {
+  const result = parseEmail({
+    subject: 'Interview invitation',
+    body: 'Company: Example Robotics\nPosition: Robotics Intern\nApplication ID #ABC-123\nApplication ID #ABC-456',
+  });
+
+  assert.equal(result.referenceNumber, null);
+  assert.equal(result.requiresReview, true);
 });
