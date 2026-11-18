@@ -38,6 +38,7 @@ const applicationSchema = new mongoose.Schema(
       required: [true, 'Role is required'],
       trim: true,
     },
+    ReferenceNumber: { type: String, trim: true, maxlength: 80 },
     Location: {
       type: String,
       trim: true,

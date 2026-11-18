@@ -1,0 +1,16 @@
+info:
+  name: updates
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: https://lamp.alugo.org/api/email/imports/6afbfddc65c41c949ffb7e77/approve
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

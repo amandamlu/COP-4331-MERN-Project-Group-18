@@ -1,31 +1,34 @@
 info:
-  name: "Create - valid application"
+  name: Create - valid application
   type: http
   seq: 1
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/applications"
+  url: https://lamp.alugo.org/api/applications
   headers:
     - name: Authorization
-      value: "Bearer {{token}}"
+      value: Bearer {{token}}
     - name: Content-Type
-      value: "application/json"
+      value: application/json
   body:
     type: json
     data: |-
       {
-        "Company": "Bruno Test Co",
-        "Role": "QA Engineering Intern",
+        "Company": "Example Robotics",
+        "Role": "Software Engineering Intern",
         "Location": "Orlando, FL",
         "Status": "Applied",
-        "SalaryHourly": 40,
+        "SalaryHourly": 41,
         "DateApplied": "2026-11-01",
         "JobLink": "https://example.com/jobs/123",
         "Notes": "Created by Bruno test"
       }
 
 runtime:
+  variables:
+    - name: token
+      value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2YWYyNWFjM2NlYTU4YTA5MmYzNTUxODMiLCJsb2dpbiI6ImxvZ2ludGVzdHVzZXIiLCJpYXQiOjE3OTQ4OTg4MjgsImV4cCI6MTc5NDkwMjQyOH0.PzgbKk5O5tR2WWpDe92PfSOdEIFI9j6T-FWxPRv5GwE
   scripts:
     - type: after-response
       code: |-
@@ -56,3 +59,7 @@ runtime:
 
 settings:
   encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

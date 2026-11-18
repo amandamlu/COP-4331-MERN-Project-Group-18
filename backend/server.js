@@ -8,15 +8,20 @@ const connectDB = require("./config/db");
 
 // Import registration routes
 const registerRoutes = require("./routes/register"); 
+const emailWebhookRoutes = require('./routes/emailWebhook');
+const emailRoutes = require('./routes/email');
 
 // Initialize Express
 const app = express(); 
 
 // Middleware 
 app.use(cors()); 
+// Resend signs the raw request body, so mount its webhook before the JSON parser.
+app.use('/api/email/webhook', emailWebhookRoutes);
 app.use(express.json()); 
 
 ////// API Routes /////////////
+app.use('/api/email', emailRoutes);
 // Registration Endpoint
 app.use("/api/auth/register", registerRoutes); 
 
@@ -40,6 +45,8 @@ const dashboardRoutes = require('./routes/dashboard');
 // All contacts route
 const allContactsRoutes = require('./routes/allContacts'); 
 
+const resourceRoutes = require('./routes/resources');
+
 // under the registration endpoint
 app.use("/api/auth", logInRoutes);
 
@@ -50,6 +57,8 @@ app.use("/api/applications", applicationRoutes);
 app.use("/api/dashboard", dashboardRoutes); 
 
 app.use('/api/contacts', allContactsRoutes); 
+
+app.use('/api/resources', resourceRoutes); 
 
 // Error Handling
 app.use(notFound); 
