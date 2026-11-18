@@ -1,12 +1,14 @@
 const mongoose = require('mongoose');
 const Application = require('../models/Application');
 const Contact = require('../models/Contact');
+const applicationService = require('../services/applicationService');
 
 // Fields a client may set. UserId is excluded on purpose: it always comes
 // from the verified token, never from the request body.
 const ALLOWED_FIELDS = [
   'Company',
   'Role',
+  'ReferenceNumber',
   'Location',
   'Status',
   'SalaryHourly',
@@ -59,9 +61,7 @@ exports.createApplication = async (req, res) => {
       return res.status(400).json({ error: 'Company and Role are required.' });
     }
 
-    data.UserId = req.user.id;
-
-    const application = await Application.create(data);
+    const application = await applicationService.createApplication(req.user.id, data);
     return res.status(201).json(application);
   } catch (err) {
     return handleError(err, res, 'createApplication');
@@ -274,11 +274,7 @@ exports.updateApplication = async (req, res) => {
       return res.status(400).json({ error: 'Role cannot be blank.' });
     }
 
-    const application = await Application.findOneAndUpdate(
-      { _id: id, UserId: req.user.id },
-      { $set: updates },
-      { new: true, runValidators: true }
-    );
+    const application = await applicationService.updateApplication(req.user.id, id, updates);
     if (!application) return res.status(404).json({ error: 'Application not found.' });
 
     return res.status(200).json(application);
