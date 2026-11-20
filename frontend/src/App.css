@@ -7,6 +7,7 @@
 /* Bootstrap Dashboard Template Styles */
 .dashboard-wrapper {
   font-size: 0.875rem;
+  overflow-x: hidden;
 }
 
 .dashboard-wrapper .navbar-brand {
@@ -43,6 +44,10 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
+  background: none;
+  border: 0;
+  width: 100%;
+  text-align: left;
 }
 
 .sidebar .nav-link i {
@@ -64,4 +69,59 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   color: #6c757d;
+}
+
+/* Tinder-Style Company Swipe Deck Styles */
+.swipe-stage {
+  max-width: 460px;
+  min-height: 340px;
+}
+
+.swipe-card {
+  user-select: none;
+  touch-action: pan-y;
+  cursor: grab;
+  z-index: 2;
+}
+
+.swipe-card:active {
+  cursor: grabbing;
+}
+
+.swipe-card-next {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  right: 0;
+  transform: scale(0.95);
+  opacity: 0.65;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.company-avatar {
+  width: 48px;
+  height: 48px;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.swipe-stamp {
+  position: absolute;
+  top: 18px;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  z-index: 5;
+  pointer-events: none;
+  background-color: rgba(255, 255, 255, 0.92);
+}
+
+.swipe-stamp-right {
+  left: 18px;
+  transform: rotate(-12deg);
+}
+
+.swipe-stamp-left {
+  right: 18px;
+  transform: rotate(12deg);
 }

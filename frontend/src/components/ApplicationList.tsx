@@ -10,10 +10,27 @@ export interface ApplicationData {
 
 interface ApplicationListProps {
   applications: ApplicationData[];
+  onEdit: (app: ApplicationData) => void;
   onDelete: (id: string) => void;
 }
 
-function ApplicationList({ applications, onDelete }: ApplicationListProps) {
+function getStatusBadgeClass(status: string): string {
+  switch (status) {
+    case 'Offer':
+    case 'Heard Back':
+      return 'bg-success';
+    case 'Interviewing':
+      return 'bg-primary';
+    case 'Applied':
+      return 'bg-info text-dark';
+    case 'Rejected':
+      return 'bg-danger';
+    default:
+      return 'bg-secondary';
+  }
+}
+
+function ApplicationList({ applications, onEdit, onDelete }: ApplicationListProps) {
   return (
     <div className="table-responsive">
       <table className="table table-striped table-sm align-middle">
@@ -42,18 +59,33 @@ function ApplicationList({ applications, onDelete }: ApplicationListProps) {
                 <td>{app.role}</td>
                 <td>{app.location}</td>
                 <td>
-                  <span className="badge bg-secondary">{app.status}</span>
+                  <span className={`badge ${getStatusBadgeClass(app.status)}`}>
+                    {app.status}
+                  </span>
                 </td>
                 <td>${app.salaryHourly}</td>
                 <td>{app.dateApplied}</td>
                 <td>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-danger"
-                    onClick={() => onDelete(app.id)}
-                  >
-                    Delete
-                  </button>
+                  <div className="d-flex gap-1">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-primary"
+                      onClick={() => onEdit(app)}
+                      aria-label={`Edit ${app.company}`}
+                      title="Edit"
+                    >
+                      <i className="bi bi-pencil"></i>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger"
+                      onClick={() => onDelete(app.id)}
+                      aria-label={`Delete ${app.company}`}
+                      title="Delete"
+                    >
+                      <i className="bi bi-trash"></i>
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))

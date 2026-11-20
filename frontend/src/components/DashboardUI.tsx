@@ -1,41 +1,33 @@
 import { useState, type FormEvent } from 'react';
 import ApplicationList, { type ApplicationData } from './ApplicationList';
+import CompanySwipeDeck from './CompanySwipeDeck';
+import { useApplications } from '../hooks/useApplications';
 
-const INITIAL_APPLICATIONS: ApplicationData[] = [
-  {
-    id: '1',
-    company: 'Texas Instruments',
-    role: 'Applications Engineering Intern',
-    location: 'Dallas, TX',
-    status: 'Offer',
-    salaryHourly: '38',
-    dateApplied: '2026-09-10',
-  },
-  {
-    id: '2',
-    company: 'AMD',
-    role: 'CPU Post-Silicon Validation Co-op',
-    location: 'Austin, TX',
-    status: 'Interviewing',
-    salaryHourly: '38',
-    dateApplied: '2026-09-22',
-  },
-  {
-    id: '3',
-    company: 'Lockheed Martin',
-    role: 'Software Engineering Intern',
-    location: 'Orlando, FL',
-    status: 'Applied',
-    salaryHourly: '31',
-    dateApplied: '2026-10-05',
-  },
-];
+type ActiveTab = 'dashboard' | 'swipe';
 
 function DashboardUI() {
-  const [applications, setApplications] = useState<ApplicationData[]>(INITIAL_APPLICATIONS);
+  const {
+    applications,
+    deckCards,
+    heardBackCount,
+    noResponseCount,
+    canUndo,
+    addApplication,
+    updateApplication,
+    deleteApplication,
+    onSwipeLeft,
+    onSwipeRight,
+    undoLastSwipe,
+    resetDeck,
+  } = useApplications();
+
+  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [showForm, setShowForm] = useState(false);
 
   // Form input states
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [company, setCompany] = useState('');
   const [role, setRole] = useState('');
   const [location, setLocation] = useState('');
@@ -43,19 +35,9 @@ function DashboardUI() {
   const [salaryHourly, setSalaryHourly] = useState('');
   const [dateApplied, setDateApplied] = useState('');
 
-  function handleAddApplication(e: FormEvent) {
-    e.preventDefault();
-    const newApp: ApplicationData = {
-      id: Date.now().toString(),
-      company,
-      role,
-      location,
-      status,
-      salaryHourly: salaryHourly || '0',
-      dateApplied: dateApplied || '2026-11-05',
-    };
-
-    setApplications([...applications, newApp]);
+  function resetForm() {
+    setEditingId(null);
+    setShowForm(false);
     setCompany('');
     setRole('');
     setLocation('');
@@ -64,16 +46,45 @@ function DashboardUI() {
     setDateApplied('');
   }
 
-  function handleDeleteApplication(id: string) {
-    setApplications(applications.filter((app) => app.id !== id));
+  function handleStartEdit(app: ApplicationData) {
+    setEditingId(app.id);
+    setShowForm(true);
+    setCompany(app.company);
+    setRole(app.role);
+    setLocation(app.location);
+    setStatus(app.status);
+    setSalaryHourly(app.salaryHourly);
+    setDateApplied(app.dateApplied);
   }
 
-  const filteredApplications = applications.filter(
-    (app) =>
+  function handleSaveApplication(e: FormEvent) {
+    e.preventDefault();
+    const payload = {
+      company,
+      role,
+      location,
+      status,
+      salaryHourly: salaryHourly || '0',
+      dateApplied: dateApplied || '2026-11-16',
+    };
+
+    if (editingId) {
+      updateApplication(editingId, payload);
+    } else {
+      addApplication(payload);
+    }
+
+    resetForm();
+  }
+
+  const filteredApplications = applications.filter((app) => {
+    const matchesSearch =
       app.company.toLowerCase().includes(search.toLowerCase()) ||
       app.role.toLowerCase().includes(search.toLowerCase()) ||
-      app.status.toLowerCase().includes(search.toLowerCase())
-  );
+      app.status.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === 'All' || app.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="dashboard-wrapper">
@@ -111,10 +122,29 @@ function DashboardUI() {
             <div className="position-sticky">
               <ul className="nav flex-column">
                 <li className="nav-item">
-                  <a className="nav-link active" href="/dashboard">
+                  <button
+                    type="button"
+                    className={`nav-link ${activeTab === 'dashboard' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('dashboard')}
+                  >
                     <i className="bi bi-house-door"></i>
                     Dashboard
-                  </a>
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button
+                    type="button"
+                    className={`nav-link ${activeTab === 'swipe' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('swipe')}
+                  >
+                    <i className="bi bi-layers"></i>
+                    Swipe Deck
+                    {deckCards.length > 0 && (
+                      <span className="badge rounded-pill bg-primary ms-auto">
+                        {deckCards.length}
+                      </span>
+                    )}
+                  </button>
                 </li>
               </ul>
             </div>
@@ -122,88 +152,157 @@ function DashboardUI() {
 
           {/* Main Content Area */}
           <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4 pt-3">
-            <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-              <h1 className="h2">Dashboard</h1>
-            </div>
+            {activeTab === 'dashboard' ? (
+              <>
+                <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+                  <h1 className="h2">Dashboard</h1>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => {
+                      if (showForm) {
+                        resetForm();
+                      } else {
+                        setShowForm(true);
+                      }
+                    }}
+                  >
+                    <i className={`bi ${showForm ? 'bi-x-lg' : 'bi-plus-lg'} me-1`}></i>
+                    {showForm ? 'Close' : 'Add Application'}
+                  </button>
+                </div>
 
-            {/* Add Application Form */}
-            <div className="card mb-4 p-3 bg-white shadow-sm">
-              <h2 className="h5 mb-3">Add New Application</h2>
-              <form onSubmit={handleAddApplication}>
-                <div className="row g-2 mb-3">
-                  <div className="col-md-4">
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Company (e.g. AMD)"
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      required
-                    />
+                {/* Collapsible Add / Edit Application Form */}
+                {showForm && (
+                  <div className="card mb-4 p-3 bg-white shadow-sm">
+                    <h2 className="h5 mb-3">
+                      {editingId ? 'Edit Application' : 'Add New Application'}
+                    </h2>
+                    <form onSubmit={handleSaveApplication}>
+                    <div className="row g-2 mb-3">
+                      <div className="col-md-4">
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="Company (e.g. AMD)"
+                          value={company}
+                          onChange={(e) => setCompany(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="col-md-4">
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="Role (e.g. Software Intern)"
+                          value={role}
+                          onChange={(e) => setRole(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="col-md-4">
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="Location (e.g. Orlando, FL)"
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                        />
+                      </div>
+                      <div className="col-md-4">
+                        <select
+                          className="form-select"
+                          value={status}
+                          onChange={(e) => setStatus(e.target.value)}
+                        >
+                          <option value="Applied">Applied</option>
+                          <option value="Interviewing">Interviewing</option>
+                          <option value="Offer">Offer</option>
+                          <option value="Heard Back">Heard Back</option>
+                          <option value="Haven't Heard Back">Haven&apos;t Heard Back</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
+                      </div>
+                      <div className="col-md-4">
+                        <input
+                          type="number"
+                          className="form-control"
+                          placeholder="Hourly Pay ($)"
+                          value={salaryHourly}
+                          onChange={(e) => setSalaryHourly(e.target.value)}
+                        />
+                      </div>
+                      <div className="col-md-4">
+                        <input
+                          type="date"
+                          className="form-control"
+                          value={dateApplied}
+                          onChange={(e) => setDateApplied(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                      <div className="d-flex gap-2">
+                        <button type="submit" className="btn btn-primary btn-sm">
+                          {editingId ? 'Save Changes' : 'Add Application'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary btn-sm"
+                          onClick={resetForm}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
                   </div>
-                  <div className="col-md-4">
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Role (e.g. Software Intern)"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Location (e.g. Orlando, FL)"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                    />
-                  </div>
-                  <div className="col-md-4">
+                )}
+
+                {/* Applications Table Card */}
+                <div className="card p-3 bg-white shadow-sm">
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h2 id="applications" className="h5 mb-0">
+                      Applications
+                    </h2>
                     <select
-                      className="form-select"
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
+                      className="form-select form-select-sm w-auto"
+                      aria-label="Filter by status"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
                     >
+                      <option value="All">All Statuses</option>
                       <option value="Applied">Applied</option>
                       <option value="Interviewing">Interviewing</option>
                       <option value="Offer">Offer</option>
+                      <option value="Heard Back">Heard Back</option>
+                      <option value="Haven't Heard Back">Haven&apos;t Heard Back</option>
                       <option value="Rejected">Rejected</option>
                     </select>
                   </div>
-                  <div className="col-md-4">
-                    <input
-                      type="number"
-                      className="form-control"
-                      placeholder="Hourly Pay ($)"
-                      value={salaryHourly}
-                      onChange={(e) => setSalaryHourly(e.target.value)}
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <input
-                      type="date"
-                      className="form-control"
-                      value={dateApplied}
-                      onChange={(e) => setDateApplied(e.target.value)}
-                    />
-                  </div>
+                  <ApplicationList
+                    applications={filteredApplications}
+                    onEdit={handleStartEdit}
+                    onDelete={deleteApplication}
+                  />
                 </div>
-                <button type="submit" className="btn btn-primary btn-sm">
-                  Add Application
-                </button>
-              </form>
-            </div>
+              </>
+            ) : (
+              <>
+                <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+                  <h1 className="h2">Company Swipe Deck</h1>
+                </div>
 
-            {/* Applications Table Section */}
-            <h2 id="applications" className="h4 mb-3">
-              Applications
-            </h2>
-            <ApplicationList
-              applications={filteredApplications}
-              onDelete={handleDeleteApplication}
-            />
+                <CompanySwipeDeck
+                  cards={deckCards}
+                  heardBackCount={heardBackCount}
+                  noResponseCount={noResponseCount}
+                  canUndo={canUndo}
+                  onSwipeLeft={onSwipeLeft}
+                  onSwipeRight={onSwipeRight}
+                  onUndo={undoLastSwipe}
+                  onReset={resetDeck}
+                />
+              </>
+            )}
           </main>
         </div>
       </div>
