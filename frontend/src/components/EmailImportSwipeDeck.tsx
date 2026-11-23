@@ -122,194 +122,189 @@ function EmailImportSwipeDeck({
   const topNeedsReview = topCard ? needsReviewBeforeApprove(topCard) : false;
 
   return (
-    <div className="swipe-deck-section py-2">
-      {/* Live Status Counters (matching swiping-test deck header) */}
-      <div className="d-flex justify-content-center flex-wrap gap-2 mb-3">
-        <span className="badge rounded-pill bg-dark px-3 py-2 fs-6">
-          <i className="bi bi-stack me-1"></i>
-          Pending: {imports.length}
+    <div>
+      {/* Soft Status Counter Pills */}
+      <div className="d-flex flex-wrap gap-2 mb-3">
+        <span className="badge rounded-pill bg-white text-dark border fw-medium px-3 py-2">
+          <i className="bi bi-stack text-primary me-1"></i>
+          Pending: <strong>{imports.length}</strong>
         </span>
-        <span className="badge rounded-pill bg-success px-3 py-2 fs-6">
+        <span className="badge rounded-pill bg-success-subtle text-success-emphasis border border-success-subtle fw-medium px-3 py-2">
           <i className="bi bi-check-circle me-1"></i>
-          Approved: {approvedCount}
+          Approved: <strong>{approvedCount}</strong>
         </span>
-        <span className="badge rounded-pill bg-secondary px-3 py-2 fs-6">
+        <span className="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle fw-medium px-3 py-2">
           <i className="bi bi-x-circle me-1"></i>
-          Dismissed: {dismissedCount}
+          Dismissed: <strong>{dismissedCount}</strong>
         </span>
       </div>
 
-      {/* Loading / Error / Card Stack */}
-      {isLoading ? (
-        <div className="swipe-stage mx-auto">
-          <div className="card shadow-sm border-0 rounded-4 p-5 text-center bg-white my-3">
-            <div className="spinner-border text-primary mx-auto mb-3" role="status">
-              <span className="visually-hidden">Loading pending email imports...</span>
-            </div>
-            <p className="text-secondary mb-0">Loading pending email imports...</p>
-          </div>
-        </div>
-      ) : error ? (
-        <div className="swipe-stage mx-auto">
-          <div className="card shadow-sm border-0 rounded-4 p-4 text-center bg-white my-3">
-            <div className="text-danger mb-2">
-              <i className="bi bi-exclamation-octagon display-6"></i>
-            </div>
-            <h3 className="h5 fw-bold">Could Not Load Pending Imports</h3>
-            <p className="text-secondary small mb-3">{error}</p>
-            <div>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={onRefresh}
-              >
-                <i className="bi bi-arrow-clockwise me-1"></i>
-                Try Again
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="swipe-stage mx-auto position-relative">
-          {!topCard ? (
-            <div className="card shadow-sm border-0 rounded-4 p-5 text-center bg-white my-3">
-              <div className="mb-3 text-secondary">
-                <i className="bi bi-check2-all display-4 text-success"></i>
+      <div className="row g-4 align-items-start">
+        {/* Left Column: Swipe Card Stack + Action Buttons */}
+        <div className="col-12 col-lg-7">
+
+        {/* Loading / Error / Card Stack */}
+        {isLoading ? (
+          <div className="swipe-stage mx-auto">
+            <div className="card shadow-sm border-0 rounded-4 p-5 text-center bg-white">
+              <div className="spinner-border text-primary mx-auto mb-3" role="status">
+                <span className="visually-hidden">Loading pending email imports...</span>
               </div>
-              <h3 className="h5 fw-bold">All Caught Up!</h3>
-              <p className="text-secondary mb-4">
-                No pending email imports right now. Forward an internship email to
-                your address above and refresh to review it here.
-              </p>
-              <div className="d-flex justify-content-center gap-2">
+              <p className="text-secondary mb-0">Loading pending email imports...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="swipe-stage mx-auto">
+            <div className="card shadow-sm border-0 rounded-4 p-4 text-center bg-white">
+              <div className="text-danger mb-2">
+                <i className="bi bi-exclamation-octagon display-6"></i>
+              </div>
+              <h3 className="h5 fw-bold">Could Not Load Pending Imports</h3>
+              <p className="text-secondary small mb-3">{error}</p>
+              <div>
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  className="btn btn-primary btn-sm"
                   onClick={onRefresh}
                 >
                   <i className="bi bi-arrow-clockwise me-1"></i>
-                  Check for New Emails
+                  Try Again
                 </button>
               </div>
             </div>
-          ) : (
-            <>
-              {/* Next Card Preview Underneath */}
-              {nextCard && (
-                <div
-                  className="card shadow-sm border-0 rounded-4 p-4 bg-white swipe-card-next"
-                  aria-hidden="true"
-                >
-                  <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-                    <div className="d-flex align-items-center gap-3">
-                      <div className="company-avatar bg-secondary text-white fw-bold rounded-circle d-flex align-items-center justify-content-center">
-                        {getCompanyInitials(nextCard.Parsed?.company)}
-                      </div>
-                      <div>
-                        <div className="h5 fw-bold mb-0">
-                          {nextCard.Parsed?.company || 'Unknown Company'}
+          </div>
+        ) : (
+          <div className="swipe-stage mx-auto position-relative">
+            {!topCard ? (
+              <div className="card shadow-sm border-0 rounded-4 p-5 text-center bg-white">
+                <div className="mb-3 text-secondary">
+                  <i className="bi bi-check2-all display-4 text-success"></i>
+                </div>
+                <h3 className="h5 fw-bold">All Caught Up!</h3>
+                <p className="text-secondary small mb-4">
+                  No pending email imports right now. Forward an internship email to
+                  your address above and refresh to review it here.
+                </p>
+                <div className="d-flex justify-content-center">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm px-3"
+                    onClick={onRefresh}
+                  >
+                    <i className="bi bi-arrow-clockwise me-1"></i>
+                    Check for New Emails
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Next Card Preview Underneath */}
+                {nextCard && (
+                  <div
+                    className="card shadow-sm border-0 rounded-4 p-4 bg-white swipe-card-next"
+                    aria-hidden="true"
+                  >
+                    <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                      <div className="d-flex align-items-center gap-3">
+                        <div className="company-avatar bg-secondary text-white fw-bold rounded-circle d-flex align-items-center justify-content-center">
+                          {getCompanyInitials(nextCard.Parsed?.company)}
                         </div>
-                        <div className="text-secondary small">
-                          {nextCard.Parsed?.role || 'Unknown Position'}
+                        <div>
+                          <div className="h5 fw-bold mb-0">
+                            {nextCard.Parsed?.company || 'Unknown Company'}
+                          </div>
+                          <div className="text-secondary small">
+                            {nextCard.Parsed?.role || 'Unknown Position'}
+                          </div>
+                        </div>
+                      </div>
+                      <span
+                        className={`badge ${getStatusBadgeClass(nextCard.Parsed?.status)}`}
+                      >
+                        {nextCard.Parsed?.status || 'Unknown'}
+                      </span>
+                    </div>
+                    <div className="small text-secondary text-truncate">
+                      <i className="bi bi-envelope me-1"></i>
+                      {nextCard.Subject || '(No subject)'}
+                    </div>
+                  </div>
+                )}
+
+                {/* Active Draggable Top Card */}
+                <div
+                  key={topCard._id}
+                  className="card shadow border-0 rounded-4 p-4 bg-white swipe-card position-relative"
+                  style={{
+                    transform: `translate(${effectiveX}px, ${effectiveY}px) rotate(${rotation}deg)`,
+                    transition: isDragging
+                      ? 'none'
+                      : 'transform 0.25s ease-out, opacity 0.25s ease-out',
+                    opacity: exitDirection ? 0 : 1,
+                  }}
+                  onPointerDown={handlePointerDown}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerEnd}
+                  onPointerCancel={handlePointerEnd}
+                >
+                  {/* Drag Stamp Overlays */}
+                  {effectiveX > 15 && (
+                    <div
+                      className={`swipe-stamp swipe-stamp-right border border-3 fw-bold px-2 py-1 rounded ${
+                        topNeedsReview
+                          ? 'border-primary text-primary'
+                          : 'border-success text-success'
+                      }`}
+                      style={{ opacity: stampOpacity }}
+                    >
+                      {topNeedsReview ? 'REVIEW & ACCEPT' : 'ACCEPT'}
+                    </div>
+                  )}
+                  {effectiveX < -15 && (
+                    <div
+                      className="swipe-stamp swipe-stamp-left border border-3 border-warning text-warning fw-bold px-2 py-1 rounded"
+                      style={{ opacity: stampOpacity }}
+                    >
+                      MAKE CHANGES
+                    </div>
+                  )}
+
+                  {/* Company & Status Header */}
+                  <div className="d-flex align-items-center justify-content-between gap-2 mb-3 pb-3 border-bottom">
+                    <div className="d-flex align-items-center gap-3 min-w-0">
+                      <div className="company-avatar bg-primary text-white fw-bold rounded-circle d-flex align-items-center justify-content-center shadow-sm">
+                        {getCompanyInitials(topCard.Parsed?.company)}
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="h4 fw-bold mb-0 text-truncate">
+                          {topCard.Parsed?.company || (
+                            <span className="text-warning-emphasis fst-italic">
+                              Unknown Company
+                            </span>
+                          )}
+                        </h3>
+                        <div className="text-secondary small text-truncate">
+                          {topCard.Parsed?.role || (
+                            <span className="text-warning-emphasis fst-italic">
+                              Position needs confirmation
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
                     <span
-                      className={`badge ${getStatusBadgeClass(nextCard.Parsed?.status)}`}
+                      className={`badge flex-shrink-0 ${getStatusBadgeClass(
+                        topCard.Parsed?.status,
+                      )}`}
                     >
-                      {nextCard.Parsed?.status || 'Unknown'}
+                      {topCard.Parsed?.status || 'Needs Status'}
                     </span>
                   </div>
-                  <div className="small text-secondary text-truncate">
-                    <i className="bi bi-envelope me-1"></i>
-                    {nextCard.Subject || '(No subject)'}
-                  </div>
-                </div>
-              )}
 
-              {/* Active Draggable Top Card */}
-              <div
-                key={topCard._id}
-                className="card shadow border-0 rounded-4 p-4 bg-white swipe-card position-relative"
-                style={{
-                  transform: `translate(${effectiveX}px, ${effectiveY}px) rotate(${rotation}deg)`,
-                  transition: isDragging
-                    ? 'none'
-                    : 'transform 0.25s ease-out, opacity 0.25s ease-out',
-                  opacity: exitDirection ? 0 : 1,
-                }}
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerEnd}
-                onPointerCancel={handlePointerEnd}
-              >
-                {/* Drag Stamp Overlays */}
-                {effectiveX > 15 && (
-                  <div
-                    className={`swipe-stamp swipe-stamp-right border border-3 fw-bold px-2 py-1 rounded ${
-                      topNeedsReview
-                        ? 'border-primary text-primary'
-                        : 'border-success text-success'
-                    }`}
-                    style={{ opacity: stampOpacity }}
-                  >
-                    {topNeedsReview ? 'REVIEW & ACCEPT' : 'ACCEPT'}
-                  </div>
-                )}
-                {effectiveX < -15 && (
-                  <div
-                    className="swipe-stamp swipe-stamp-left border border-3 border-warning text-warning fw-bold px-2 py-1 rounded"
-                    style={{ opacity: stampOpacity }}
-                  >
-                    MAKE CHANGES
-                  </div>
-                )}
-
-                {/* Company & Status Header */}
-                <div className="d-flex align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
-                  <div className="d-flex align-items-center gap-3 min-w-0">
-                    <div className="company-avatar bg-primary text-white fw-bold rounded-circle d-flex align-items-center justify-content-center shadow-sm">
-                      {getCompanyInitials(topCard.Parsed?.company)}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="h4 fw-bold mb-0 text-truncate">
-                        {topCard.Parsed?.company || (
-                          <span className="text-warning-emphasis fst-italic">
-                            Unknown Company
-                          </span>
-                        )}
-                      </h3>
-                      <div className="text-secondary small text-truncate">
-                        {topCard.Parsed?.role || (
-                          <span className="text-warning-emphasis fst-italic">
-                            Position needs confirmation
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <span
-                    className={`badge flex-shrink-0 ${getStatusBadgeClass(
-                      topCard.Parsed?.status,
-                    )}`}
-                  >
-                    {topCard.Parsed?.status || 'Needs Status'}
-                  </span>
-                </div>
-
-                {/* Suggested Action Callout */}
-                {topMatch && (
-                  <div className="mb-3">
-                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
-                      <span className="text-uppercase text-secondary fw-semibold small">
-                        Suggested Action
-                      </span>
-                      <span className={`badge ${topMatch.badgeClass}`}>
-                        {topMatch.badgeLabel}
-                      </span>
-                    </div>
+                  {/* Clean Inline Action Callout */}
+                  {topMatch && (
                     <div
-                      className={`p-2 rounded-3 bg-light border-start border-4 ${
+                      className={`p-2 px-3 rounded-3 bg-light border-start border-4 mb-3 ${
                         topMatch.requiresAction
                           ? 'border-warning'
                           : topCard.Match?.action === 'create'
@@ -317,22 +312,22 @@ function EmailImportSwipeDeck({
                             : 'border-primary'
                       }`}
                     >
+                      <div className="d-flex align-items-center gap-2 mb-1">
+                        <span className={`badge ${topMatch.badgeClass}`}>
+                          {topMatch.badgeLabel}
+                        </span>
+                      </div>
                       <div className="small text-dark">{topMatch.description}</div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Extracted Email Metadata */}
-                <div className="mb-2">
-                  <div className="text-uppercase text-secondary fw-semibold small mb-2">
-                    Forwarded Email Details
-                  </div>
-                  <div className="p-2 rounded-3 bg-light border">
-                    <div className="fw-semibold text-dark small mb-1">
-                      <i className="bi bi-envelope-open me-1 text-primary"></i>
+                  {/* Compact Email Metadata */}
+                  <div className="px-1 mb-2">
+                    <div className="fw-semibold text-dark small mb-1 text-truncate" title={topCard.Subject || '(No subject)'}>
+                      <i className="bi bi-envelope-open me-2 text-primary"></i>
                       {topCard.Subject || '(No subject)'}
                     </div>
-                    <div className="d-flex flex-wrap gap-3 small text-secondary">
+                    <div className="d-flex flex-wrap gap-x-3 gap-2 small text-secondary">
                       <span className="text-truncate" style={{ maxWidth: '100%' }}>
                         <i className="bi bi-person me-1"></i>
                         {topCard.From || 'Unknown sender'}
@@ -344,7 +339,7 @@ function EmailImportSwipeDeck({
                       {topCard.Parsed?.dateApplied && (
                         <span>
                           <i className="bi bi-calendar3 me-1"></i>
-                          Applied: {topCard.Parsed.dateApplied}
+                          Applied {topCard.Parsed.dateApplied}
                         </span>
                       )}
                       {topCard.Parsed?.referenceNumber && (
@@ -355,124 +350,129 @@ function EmailImportSwipeDeck({
                       )}
                     </div>
                   </div>
+
+                  <div className="text-center text-muted small mt-3 pt-2 border-top">
+                    <i className="bi bi-hand-index-thumb me-1"></i>
+                    Swipe right to accept &bull; Swipe left to make changes
+                  </div>
                 </div>
+              </>
+            )}
+          </div>
+        )}
 
-                <div className="text-center text-muted small mt-3 pt-2 border-top">
-                  <i className="bi bi-hand-index-thumb me-1"></i>
-                  Swipe right to accept &bull; Swipe left to make changes
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      )}
+        {/* 3 Focused Action Buttons Below Stack */}
+        {topCard && !isLoading && !error && (
+          <div className="d-flex justify-content-center align-items-center flex-wrap gap-2 mt-3">
+            <button
+              type="button"
+              className="btn btn-outline-secondary px-3 py-2 fw-medium"
+              onClick={() => triggerSwipe('left')}
+              disabled={isBusy}
+            >
+              <i className="bi bi-pencil-square me-1"></i>
+              Make Changes
+            </button>
 
-      {/* Action Buttons Below Stack */}
-      <div className="d-flex justify-content-center align-items-center flex-wrap gap-2 mt-3">
-        <button
-          type="button"
-          className="btn btn-outline-warning text-dark px-3 py-2 fw-semibold"
-          onClick={() => triggerSwipe('left')}
-          disabled={!topCard || isBusy || isLoading}
-        >
-          <i className="bi bi-pencil-square me-1"></i>
-          Make Changes
-        </button>
+            <button
+              type="button"
+              className="btn btn-outline-danger px-3 py-2 fw-medium"
+              onClick={() => void onDismiss(topCard)}
+              disabled={isBusy}
+              title="Dismiss this email import without changing applications"
+            >
+              <i className="bi bi-x-lg me-1"></i>
+              Dismiss
+            </button>
 
-        <button
-          type="button"
-          className="btn btn-outline-danger px-3 py-2"
-          onClick={() => topCard && void onDismiss(topCard)}
-          disabled={!topCard || isBusy || isLoading}
-          title="Dismiss this email import without changing applications"
-        >
-          <i className="bi bi-x-lg me-1"></i>
-          Dismiss
-        </button>
-
-        <button
-          type="button"
-          className="btn btn-outline-secondary px-3 py-2"
-          onClick={onRefresh}
-          disabled={isLoading || isBusy}
-          title="Refresh pending email imports"
-        >
-          <i className="bi bi-arrow-clockwise me-1"></i>
-          Refresh
-        </button>
-
-        <button
-          type="button"
-          className="btn btn-success px-3 py-2 fw-semibold"
-          onClick={() => triggerSwipe('right')}
-          disabled={!topCard || isBusy || isLoading}
-        >
-          {busyId === topCard?._id ? (
-            <>
-              <span
-                className="spinner-border spinner-border-sm me-1"
-                role="status"
-                aria-hidden="true"
-              ></span>
-              Approving...
-            </>
-          ) : (
-            <>
-              <i className="bi bi-check-lg me-1"></i>
-              {topNeedsReview ? 'Review & Accept' : 'Accept'}
-            </>
-          )}
-        </button>
+            <button
+              type="button"
+              className="btn btn-success px-4 py-2 fw-semibold"
+              onClick={() => triggerSwipe('right')}
+              disabled={isBusy}
+            >
+              {busyId === topCard._id ? (
+                <>
+                  <span
+                    className="spinner-border spinner-border-sm me-1"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Approving...
+                </>
+              ) : (
+                <>
+                  <i className="bi bi-check-lg me-1"></i>
+                  {topNeedsReview ? 'Review & Accept' : 'Accept'}
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Upcoming Queue Preview when multiple pending imports exist */}
-      {imports.length > 1 && (
-        <div className="card shadow-sm border-0 bg-white mt-4 mx-auto" style={{ maxWidth: '680px' }}>
+      {/* Right Column: Up Next Queue */}
+      <div className="col-12 col-lg-5">
+        <div className="card shadow-sm border-0 bg-white">
           <div className="card-body">
-            <h3 className="h6 fw-bold text-uppercase text-secondary mb-3">
-              Up Next in Queue ({imports.length - 1})
-            </h3>
-            <div className="list-group list-group-flush">
-              {imports.slice(1).map((item) => {
-                const summary = describeMatchAction(item, appById);
-                return (
-                  <div
-                    key={item._id}
-                    className="list-group-item px-0 d-flex justify-content-between align-items-center flex-wrap gap-2"
-                  >
-                    <div className="min-w-0">
-                      <div className="fw-semibold text-dark">
-                        {item.Parsed?.company || 'Unknown Company'}{' '}
-                        <span className="fw-normal text-secondary">
-                          — {item.Parsed?.role || 'Unknown Position'}
+            <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+              <h2 className="h6 fw-bold text-uppercase text-secondary mb-0">
+                Up Next in Queue
+              </h2>
+              <span className="badge rounded-pill bg-light text-secondary border">
+                {Math.max(0, imports.length - 1)}
+              </span>
+            </div>
+
+            {imports.length <= 1 ? (
+              <p className="text-secondary small mb-0 text-center py-3">
+                {imports.length === 1
+                  ? 'You are viewing the last pending email.'
+                  : 'No queued emails waiting.'}
+              </p>
+            ) : (
+              <div className="list-group list-group-flush">
+                {imports.slice(1).map((item) => {
+                  const summary = describeMatchAction(item, appById);
+                  return (
+                    <div
+                      key={item._id}
+                      className="list-group-item px-0 py-2"
+                    >
+                      <div className="d-flex justify-content-between align-items-start gap-2">
+                        <div className="min-w-0">
+                          <div className="fw-semibold text-dark text-truncate">
+                            {item.Parsed?.company || 'Unknown Company'}
+                          </div>
+                          <div className="small text-secondary text-truncate">
+                            {item.Parsed?.role || 'Unknown Position'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-primary py-0 px-2 flex-shrink-0"
+                          onClick={() => onSwipeLeftEdit(item)}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                      <div className="d-flex align-items-center flex-wrap gap-1 mt-2">
+                        <span className={`badge ${getStatusBadgeClass(item.Parsed?.status)}`}>
+                          {item.Parsed?.status || 'Unknown'}
+                        </span>
+                        <span className={`badge ${summary.badgeClass}`}>
+                          {summary.badgeLabel}
                         </span>
                       </div>
-                      <div className="small text-secondary text-truncate">
-                        {item.Subject || '(No subject)'}
-                      </div>
                     </div>
-                    <div className="d-flex align-items-center gap-2">
-                      <span className={`badge ${getStatusBadgeClass(item.Parsed?.status)}`}>
-                        {item.Parsed?.status || 'Unknown'}
-                      </span>
-                      <span className={`badge ${summary.badgeClass}`}>
-                        {summary.badgeLabel}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-primary"
-                        onClick={() => onSwipeLeftEdit(item)}
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
+    </div>
     </div>
   );
 }

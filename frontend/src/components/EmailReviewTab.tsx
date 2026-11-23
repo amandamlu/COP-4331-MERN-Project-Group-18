@@ -160,7 +160,7 @@ function EmailReviewTab({
   return (
     <div>
       <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-        <h1 className="h2 mb-0">Email Forwarding &amp; Review</h1>
+        <h1 className="h2 mb-0">Email Review</h1>
         <button
           type="button"
           className="btn btn-outline-secondary btn-sm"
@@ -168,11 +168,11 @@ function EmailReviewTab({
           disabled={isLoadingImports}
         >
           <i className="bi bi-arrow-clockwise me-1"></i>
-          Refresh Pending Imports
+          Refresh
         </button>
       </div>
 
-      {/* Forwarding Address + Gmail/Outlook Instructions */}
+      {/* Compact Forwarding Address Bar */}
       <EmailForwardingCard
         address={forwardingAddress}
         isLoading={isLoadingAddress}
@@ -196,17 +196,7 @@ function EmailReviewTab({
         </div>
       )}
 
-      {/* Pending Email Imports Swipe Deck */}
-      <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-        <h2 className="h5 fw-bold mb-0">
-          <i className="bi bi-layers text-primary me-2"></i>
-          Pending Email Imports
-        </h2>
-        <span className="text-secondary small">
-          Swipe right to accept &bull; Swipe left to make changes
-        </span>
-      </div>
-
+      {/* Pending Email Imports Swipe Deck + Queue */}
       <EmailImportSwipeDeck
         imports={filteredImports}
         approvedCount={approvedCount}
