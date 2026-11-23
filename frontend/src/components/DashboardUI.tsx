@@ -1,5 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import ApplicationList, { type ApplicationData } from './ApplicationList';
+import EmailReviewTab from './EmailReviewTab';
+import { useEmailImports } from '../hooks/useEmailImports';
+
+type ActiveTab = 'dashboard' | 'email-review';
 
 const INITIAL_APPLICATIONS: ApplicationData[] = [
   {
@@ -32,8 +36,28 @@ const INITIAL_APPLICATIONS: ApplicationData[] = [
 ];
 
 function DashboardUI() {
+  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [applications, setApplications] = useState<ApplicationData[]>(INITIAL_APPLICATIONS);
   const [search, setSearch] = useState('');
+
+  const {
+    forwardingAddress,
+    isLoadingAddress,
+    addressError,
+    refreshForwardingAddress,
+    imports,
+    totalPending,
+    isLoadingImports,
+    importsError,
+    matchedApplications,
+    approvedCount,
+    dismissedCount,
+    refreshImports,
+    fetchImportDetails,
+    editImport,
+    approveImport,
+    dismissImport,
+  } = useEmailImports();
 
   // Form input states
   const [company, setCompany] = useState('');
@@ -111,10 +135,29 @@ function DashboardUI() {
             <div className="position-sticky">
               <ul className="nav flex-column">
                 <li className="nav-item">
-                  <a className="nav-link active" href="/dashboard">
+                  <button
+                    type="button"
+                    className={`nav-link ${activeTab === 'dashboard' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('dashboard')}
+                  >
                     <i className="bi bi-house-door"></i>
                     Dashboard
-                  </a>
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button
+                    type="button"
+                    className={`nav-link ${activeTab === 'email-review' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('email-review')}
+                  >
+                    <i className="bi bi-envelope-check"></i>
+                    Email Review
+                    {totalPending > 0 && (
+                      <span className="badge rounded-pill bg-primary ms-auto">
+                        {totalPending}
+                      </span>
+                    )}
+                  </button>
                 </li>
               </ul>
             </div>
@@ -122,88 +165,111 @@ function DashboardUI() {
 
           {/* Main Content Area */}
           <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4 pt-3">
-            <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-              <h1 className="h2">Dashboard</h1>
-            </div>
-
-            {/* Add Application Form */}
-            <div className="card mb-4 p-3 bg-white shadow-sm">
-              <h2 className="h5 mb-3">Add New Application</h2>
-              <form onSubmit={handleAddApplication}>
-                <div className="row g-2 mb-3">
-                  <div className="col-md-4">
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Company (e.g. AMD)"
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Role (e.g. Software Intern)"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Location (e.g. Orlando, FL)"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <select
-                      className="form-select"
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                    >
-                      <option value="Applied">Applied</option>
-                      <option value="Interviewing">Interviewing</option>
-                      <option value="Offer">Offer</option>
-                      <option value="Rejected">Rejected</option>
-                    </select>
-                  </div>
-                  <div className="col-md-4">
-                    <input
-                      type="number"
-                      className="form-control"
-                      placeholder="Hourly Pay ($)"
-                      value={salaryHourly}
-                      onChange={(e) => setSalaryHourly(e.target.value)}
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <input
-                      type="date"
-                      className="form-control"
-                      value={dateApplied}
-                      onChange={(e) => setDateApplied(e.target.value)}
-                    />
-                  </div>
+            {activeTab === 'dashboard' ? (
+              <>
+                <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+                  <h1 className="h2">Dashboard</h1>
                 </div>
-                <button type="submit" className="btn btn-primary btn-sm">
-                  Add Application
-                </button>
-              </form>
-            </div>
 
-            {/* Applications Table Section */}
-            <h2 id="applications" className="h4 mb-3">
-              Applications
-            </h2>
-            <ApplicationList
-              applications={filteredApplications}
-              onDelete={handleDeleteApplication}
-            />
+                {/* Add Application Form */}
+                <div className="card mb-4 p-3 bg-white shadow-sm">
+                  <h2 className="h5 mb-3">Add New Application</h2>
+                  <form onSubmit={handleAddApplication}>
+                    <div className="row g-2 mb-3">
+                      <div className="col-md-4">
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="Company (e.g. AMD)"
+                          value={company}
+                          onChange={(e) => setCompany(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="col-md-4">
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="Role (e.g. Software Intern)"
+                          value={role}
+                          onChange={(e) => setRole(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="col-md-4">
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="Location (e.g. Orlando, FL)"
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                        />
+                      </div>
+                      <div className="col-md-4">
+                        <select
+                          className="form-select"
+                          value={status}
+                          onChange={(e) => setStatus(e.target.value)}
+                        >
+                          <option value="Applied">Applied</option>
+                          <option value="Interviewing">Interviewing</option>
+                          <option value="Offer">Offer</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
+                      </div>
+                      <div className="col-md-4">
+                        <input
+                          type="number"
+                          className="form-control"
+                          placeholder="Hourly Pay ($)"
+                          value={salaryHourly}
+                          onChange={(e) => setSalaryHourly(e.target.value)}
+                        />
+                      </div>
+                      <div className="col-md-4">
+                        <input
+                          type="date"
+                          className="form-control"
+                          value={dateApplied}
+                          onChange={(e) => setDateApplied(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <button type="submit" className="btn btn-primary btn-sm">
+                      Add Application
+                    </button>
+                  </form>
+                </div>
+
+                {/* Applications Table Section */}
+                <h2 id="applications" className="h4 mb-3">
+                  Applications
+                </h2>
+                <ApplicationList
+                  applications={filteredApplications}
+                  onDelete={handleDeleteApplication}
+                />
+              </>
+            ) : (
+              <EmailReviewTab
+                applications={matchedApplications}
+                searchQuery={search}
+                forwardingAddress={forwardingAddress}
+                isLoadingAddress={isLoadingAddress}
+                addressError={addressError}
+                onRetryAddress={() => void refreshForwardingAddress()}
+                imports={imports}
+                isLoadingImports={isLoadingImports}
+                importsError={importsError}
+                approvedCount={approvedCount}
+                dismissedCount={dismissedCount}
+                onRefreshImports={() => void refreshImports()}
+                onFetchDetails={fetchImportDetails}
+                onSaveEdit={editImport}
+                onApprove={approveImport}
+                onDismiss={dismissImport}
+              />
+            )}
           </main>
         </div>
       </div>
