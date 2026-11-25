@@ -3,39 +3,6 @@ import { apiFetch, ApiError } from '../services/apiClient';
 import type { ApplicationData } from '../components/ApplicationList';
 import type { BackendApplication } from '../types/emailImport';
 
-const USE_MOCK_APPLICATIONS =
-  import.meta.env.DEV && import.meta.env.VITE_MOCK_EMAIL_IMPORTS === 'true';
-
-const INITIAL_MOCK_APPLICATIONS: ApplicationData[] = [
-  {
-    id: 'mock-app-1',
-    company: 'Texas Instruments',
-    role: 'Applications Engineering Intern',
-    location: 'Dallas, TX',
-    status: 'Offer',
-    salaryHourly: '38',
-    dateApplied: '2026-09-10',
-  },
-  {
-    id: 'mock-app-2',
-    company: 'AMD',
-    role: 'CPU Post-Silicon Validation Co-op',
-    location: 'Austin, TX',
-    status: 'Applied',
-    salaryHourly: '38',
-    dateApplied: '2026-09-22',
-  },
-  {
-    id: 'mock-app-3',
-    company: 'Lockheed Martin',
-    role: 'Software Engineering Intern',
-    location: 'Orlando, FL',
-    status: 'Applied',
-    salaryHourly: '31',
-    dateApplied: '2026-10-05',
-  },
-];
-
 interface ApplicationsListResponse {
   data: BackendApplication[];
   total: number;
@@ -94,19 +61,11 @@ function buildBackendPayload(input: SaveApplicationInput) {
 }
 
 export function useDashboardApplications() {
-  const [applications, setApplications] = useState<ApplicationData[]>(() =>
-    USE_MOCK_APPLICATIONS ? INITIAL_MOCK_APPLICATIONS : [],
-  );
-  const [isLoading, setIsLoading] = useState(!USE_MOCK_APPLICATIONS);
+  const [applications, setApplications] = useState<ApplicationData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refreshApplications = useCallback(async () => {
-    if (USE_MOCK_APPLICATIONS) {
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
     try {
@@ -126,8 +85,6 @@ export function useDashboardApplications() {
   }, []);
 
   useEffect(() => {
-    if (USE_MOCK_APPLICATIONS) return;
-
     let cancelled = false;
     async function load() {
       setIsLoading(true);
@@ -157,21 +114,6 @@ export function useDashboardApplications() {
   }, []);
 
   const createApplication = useCallback(async (input: SaveApplicationInput) => {
-    if (USE_MOCK_APPLICATIONS) {
-      const created: ApplicationData = {
-        id: `mock-app-${Date.now()}`,
-        company: input.company.trim(),
-        role: input.role.trim(),
-        location: input.location.trim(),
-        status: input.status,
-        salaryHourly: input.salaryHourly.trim(),
-        dateApplied:
-          input.dateApplied.trim() || new Date().toISOString().slice(0, 10),
-      };
-      setApplications((prev) => [created, ...prev]);
-      return created;
-    }
-
     const doc = await apiFetch<BackendApplication>('/api/applications', {
       method: 'POST',
       body: buildBackendPayload(input),
@@ -183,22 +125,6 @@ export function useDashboardApplications() {
 
   const updateApplication = useCallback(
     async (id: string, input: SaveApplicationInput) => {
-      if (USE_MOCK_APPLICATIONS) {
-        const updated: ApplicationData = {
-          id,
-          company: input.company.trim(),
-          role: input.role.trim(),
-          location: input.location.trim(),
-          status: input.status,
-          salaryHourly: input.salaryHourly.trim(),
-          dateApplied: input.dateApplied.trim(),
-        };
-        setApplications((prev) =>
-          prev.map((app) => (app.id === id ? updated : app)),
-        );
-        return updated;
-      }
-
       const doc = await apiFetch<BackendApplication>(`/api/applications/${id}`, {
         method: 'PATCH',
         body: buildBackendPayload(input),
@@ -213,11 +139,6 @@ export function useDashboardApplications() {
   );
 
   const deleteApplication = useCallback(async (id: string) => {
-    if (USE_MOCK_APPLICATIONS) {
-      setApplications((prev) => prev.filter((app) => app.id !== id));
-      return;
-    }
-
     await apiFetch<{ message: string; id: string }>(`/api/applications/${id}`, {
       method: 'DELETE',
     });
@@ -235,15 +156,7 @@ export function useDashboardApplications() {
         const existing = prev.find((app) => app.id === doc._id);
         const mapped = mapBackendToApplicationData(doc);
         if (existing) {
-          // Preserve fields like location/salaryHourly in mock mode when email only updates status
-          const merged: ApplicationData = {
-            ...existing,
-            ...mapped,
-            location: mapped.location || existing.location,
-            salaryHourly: mapped.salaryHourly || existing.salaryHourly,
-            dateApplied: mapped.dateApplied || existing.dateApplied,
-          };
-          return prev.map((app) => (app.id === doc._id ? merged : app));
+          return prev.map((app) => (app.id === doc._id ? mapped : app));
         }
         return [mapped, ...prev];
       });
