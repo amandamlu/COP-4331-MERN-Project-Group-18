@@ -1,6 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { API_BASE_URL } from '../config/api';
 import ApplicationList, { type ApplicationData } from './ApplicationList';
+import EmailReviewTab from './EmailReviewTab';
+import { useEmailImports } from '../hooks/useEmailImports';
+
+type ActiveTab = 'dashboard' | 'email-review';
 
 interface DashboardStats {
   totalApplications: number;
@@ -9,13 +13,35 @@ interface DashboardStats {
 }
 
 function DashboardUI() {
+  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+
   const [applications, setApplications] = useState<ApplicationData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [statsVersion, setStatsVersion] = useState(0);
+
+  const {
+    forwardingAddress,
+    isLoadingAddress,
+    addressError,
+    refreshForwardingAddress,
+    imports,
+    totalPending,
+    isLoadingImports,
+    importsError,
+    matchedApplications,
+    approvedCount,
+    dismissedCount,
+    refreshImports,
+    fetchImportDetails,
+    editImport,
+    approveImport,
+    dismissImport,
+  } = useEmailImports();
 
   // Form input states
   const [company, setCompany] = useState('');
@@ -312,10 +338,29 @@ async function handleDeleteApplication(id: string) {
             <div className="position-sticky">
               <ul className="nav flex-column">
                 <li className="nav-item">
-                  <a className="nav-link active" href="/dashboard">
+                  <button
+                    type="button"
+                    className={`nav-link ${activeTab === 'dashboard' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('dashboard')}
+                  >
                     <i className="bi bi-house-door"></i>
                     Dashboard
-                  </a>
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button
+                    type="button"
+                    className={`nav-link ${activeTab === 'email-review' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('email-review')}
+                  >
+                    <i className="bi bi-envelope-check"></i>
+                    Email Review
+                    {totalPending > 0 && (
+                      <span className="badge rounded-pill bg-primary ms-auto">
+                        {totalPending}
+                      </span>
+                    )}
+                  </button>
                 </li>
               </ul>
             </div>
@@ -323,6 +368,8 @@ async function handleDeleteApplication(id: string) {
 
           {/* Main Content Area */}
           <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4 pt-3">
+            {activeTab === 'dashboard' ? (
+              <>
             <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
               <h1 className="h2">Dashboard</h1>
             </div>
@@ -447,6 +494,27 @@ async function handleDeleteApplication(id: string) {
                 applications={applications}
                 onDelete={handleDeleteApplication}
                 onEdit={handleEditApplication}
+              />
+            )}
+          </>
+        ) : (
+          <EmailReviewTab
+            applications={matchedApplications}
+            searchQuery={search}
+            forwardingAddress={forwardingAddress}
+            isLoadingAddress={isLoadingAddress}
+            addressError={addressError}
+            onRetryAddress={() => void refreshForwardingAddress()}
+            imports={imports}
+            isLoadingImports={isLoadingImports}
+            importsError={importsError}
+            approvedCount={approvedCount}
+            dismissedCount={dismissedCount}
+            onRefreshImports={() => void refreshImports()}
+            onFetchDetails={fetchImportDetails}
+            onSaveEdit={editImport}
+            onApprove={approveImport}
+            onDismiss={dismissImport}
               />
             )}
           </main>
