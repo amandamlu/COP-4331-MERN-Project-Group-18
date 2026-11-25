@@ -11,9 +11,10 @@ export interface ApplicationData {
 interface ApplicationListProps {
   applications: ApplicationData[];
   onDelete: (id: string) => void;
+  onEdit: (app: ApplicationData) => void;
 }
 
-function ApplicationList({ applications, onDelete }: ApplicationListProps) {
+function ApplicationList({ applications, onDelete, onEdit, }: ApplicationListProps) {
   return (
     <div className="table-responsive">
       <table className="table table-striped table-sm align-middle">
@@ -47,6 +48,14 @@ function ApplicationList({ applications, onDelete }: ApplicationListProps) {
                 <td>${app.salaryHourly}</td>
                 <td>{app.dateApplied}</td>
                 <td>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-primary me-2"
+                    onClick={() => onEdit(app)}
+                  >
+                    Edit
+                  </button>
+
                   <button
                     type="button"
                     className="btn btn-sm btn-outline-danger"

@@ -1,39 +1,21 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { API_BASE_URL } from '../config/api';
 import ApplicationList, { type ApplicationData } from './ApplicationList';
 
-const INITIAL_APPLICATIONS: ApplicationData[] = [
-  {
-    id: '1',
-    company: 'Texas Instruments',
-    role: 'Applications Engineering Intern',
-    location: 'Dallas, TX',
-    status: 'Offer',
-    salaryHourly: '38',
-    dateApplied: '2026-09-10',
-  },
-  {
-    id: '2',
-    company: 'AMD',
-    role: 'CPU Post-Silicon Validation Co-op',
-    location: 'Austin, TX',
-    status: 'Interviewing',
-    salaryHourly: '38',
-    dateApplied: '2026-09-22',
-  },
-  {
-    id: '3',
-    company: 'Lockheed Martin',
-    role: 'Software Engineering Intern',
-    location: 'Orlando, FL',
-    status: 'Applied',
-    salaryHourly: '31',
-    dateApplied: '2026-10-05',
-  },
-];
+interface DashboardStats {
+  totalApplications: number;
+  interviewing: number;
+  offers: number;
+}
 
 function DashboardUI() {
-  const [applications, setApplications] = useState<ApplicationData[]>(INITIAL_APPLICATIONS);
+  const [applications, setApplications] = useState<ApplicationData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [statsVersion, setStatsVersion] = useState(0);
 
   // Form input states
   const [company, setCompany] = useState('');
@@ -42,38 +24,257 @@ function DashboardUI() {
   const [status, setStatus] = useState('Applied');
   const [salaryHourly, setSalaryHourly] = useState('');
   const [dateApplied, setDateApplied] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  function handleAddApplication(e: FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function fetchApplications() {
+      try {
+        const token = sessionStorage.getItem('authToken');
+
+        if (!token) {
+          setError('You must be logged in to view applications.');
+          return;
+        }
+
+        const response = await fetch(
+          `${API_BASE_URL}/api/applications?q=${encodeURIComponent(debouncedSearch)}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            signal: controller.signal,
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to load applications.');
+        }
+
+        const result = await response.json();
+
+        const mappedApplications: ApplicationData[] = result.data.map(
+          (app: {
+            _id: string;
+            Company: string;
+            Role: string;
+            Location?: string;
+            Status: string;
+            SalaryHourly?: number;
+            DateApplied?: string;
+          }) => ({
+            id: app._id,
+            company: app.Company,
+            role: app.Role,
+            location: app.Location ?? '',
+            status: app.Status,
+            salaryHourly: String(app.SalaryHourly ?? 0),
+            dateApplied: app.DateApplied ?? '',
+          })
+        );
+
+        setApplications(mappedApplications);
+
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        console.error(err);
+        setError('Unable to load your applications.');
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchApplications();
+
+    return () => controller.abort();
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function fetchStats() {
+      try {
+        const token = sessionStorage.getItem('authToken');
+        if (!token) return;
+
+        const response = await fetch(
+          `${API_BASE_URL}/api/applications/stats`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            signal: controller.signal,
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to retrieve statistics.');
+        }
+
+        const data: DashboardStats = await response.json();
+        setStats(data);
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          console.error('Dashboard statistics:', err);
+        }
+      }
+    }
+
+    fetchStats();
+
+    return () => controller.abort();
+  }, [statsVersion]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [search]);
+
+function handleEditApplication(app: ApplicationData) {
+  setEditingId(app.id);
+
+  setCompany(app.company);
+  setRole(app.role);
+  setLocation(app.location);
+  setStatus(app.status);
+  setSalaryHourly(app.salaryHourly);
+  setDateApplied(app.dateApplied);
+
+  setError('');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+  
+async function handleAddApplication(e: FormEvent) {
+  e.preventDefault();
+  setError('');
+
+  try {
+    const token = sessionStorage.getItem('authToken');
+
+    if (!token) {
+      setError('You must be logged in to add applications.');
+      return;
+    }
+
+    const response = await fetch(
+      editingId
+        ? `${API_BASE_URL}/api/applications/${editingId}`
+        : `${API_BASE_URL}/api/applications`,
+      {
+        method: editingId ? 'PATCH' : 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            Company: company.trim(),
+            Role: role.trim(),
+            Location: location.trim(),
+            Status: status,
+            ...(salaryHourly !== '' && {
+              SalaryHourly: Number(salaryHourly),
+            }),
+            ...(dateApplied !== '' && {
+              DateApplied: dateApplied,
+            }),
+          }),
+        }
+      );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to add application.');
+    }
+
     const newApp: ApplicationData = {
-      id: Date.now().toString(),
-      company,
-      role,
-      location,
-      status,
-      salaryHourly: salaryHourly || '0',
-      dateApplied: dateApplied || '2026-11-05',
+      id: data._id,
+      company: data.Company,
+      role: data.Role,
+      location: data.Location ?? '',
+      status: data.Status,
+      salaryHourly: String(data.SalaryHourly ?? 0),
+      dateApplied: data.DateApplied ?? '',
     };
 
-    setApplications([...applications, newApp]);
+    
+    if (editingId) {
+      setApplications((prev) =>
+        prev.map((app) => app.id === editingId ? newApp : app)
+      );
+    } else {
+      setApplications((prev) => [newApp, ...prev]);
+      setStatsVersion((prev) => prev + 1);
+    }
+
+    setEditingId(null);
+
+
     setCompany('');
     setRole('');
     setLocation('');
     setStatus('Applied');
     setSalaryHourly('');
     setDateApplied('');
-  }
 
-  function handleDeleteApplication(id: string) {
-    setApplications(applications.filter((app) => app.id !== id));
+  } catch (err) {
+    setError(
+      err instanceof Error ? err.message : 'Unable to add application.'
+    );
   }
+}
 
-  const filteredApplications = applications.filter(
-    (app) =>
-      app.company.toLowerCase().includes(search.toLowerCase()) ||
-      app.role.toLowerCase().includes(search.toLowerCase()) ||
-      app.status.toLowerCase().includes(search.toLowerCase())
+async function handleDeleteApplication(id: string) {
+  const confirmed = window.confirm(
+    'Are you sure you want to delete this application? Its associated contacts will also be deleted.'
   );
+
+  if (!confirmed) return;
+
+  setError('');
+
+  try {
+    const token = sessionStorage.getItem('authToken');
+
+    if (!token) {
+      setError('You must be logged in to delete applications.');
+      return;
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/applications/${id}`,
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to delete application.');
+    }
+
+    setApplications((prev) =>
+      prev.filter((app) => app.id !== id)
+    );
+    setStatsVersion((prev) => prev + 1);
+
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : 'Unable to delete application.'
+    );
+  }
+}
 
   return (
     <div className="dashboard-wrapper">
@@ -126,9 +327,24 @@ function DashboardUI() {
               <h1 className="h2">Dashboard</h1>
             </div>
 
+            <div className="row g-3 mb-4">
+              {[
+                ['Total Applications', stats?.totalApplications],
+                ['Interviewing', stats?.interviewing],
+                ['Offers', stats?.offers],
+              ].map(([label, value]) => (
+                <div className="col-md-4" key={label}>
+                  <div className="card shadow-sm p-3">
+                    <h3 className="h6 text-secondary">{label}</h3>
+                    <h2 className="mb-0">{value ?? '—'}</h2>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             {/* Add Application Form */}
             <div className="card mb-4 p-3 bg-white shadow-sm">
-              <h2 className="h5 mb-3">Add New Application</h2>
+              <h2 className="h5 mb-3">{editingId ? 'Edit Application' : 'Add New Application'}</h2>
               <form onSubmit={handleAddApplication}>
                 <div className="row g-2 mb-3">
                   <div className="col-md-4">
@@ -189,10 +405,28 @@ function DashboardUI() {
                       onChange={(e) => setDateApplied(e.target.value)}
                     />
                   </div>
-                </div>
-                <button type="submit" className="btn btn-primary btn-sm">
-                  Add Application
+                </div>             
+              <button type="submit" className="btn btn-primary btn-sm">
+                {editingId ? 'Save Changes' : 'Add Application'}
+              </button>
+
+              {editingId && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm ms-2"
+                  onClick={() => {
+                    setEditingId(null);
+                    setCompany('');
+                    setRole('');
+                    setLocation('');
+                    setStatus('Applied');
+                    setSalaryHourly('');
+                    setDateApplied('');
+                  }}
+                >
+                  Cancel
                 </button>
+              )}
               </form>
             </div>
 
@@ -200,10 +434,21 @@ function DashboardUI() {
             <h2 id="applications" className="h4 mb-3">
               Applications
             </h2>
-            <ApplicationList
-              applications={filteredApplications}
-              onDelete={handleDeleteApplication}
-            />
+            {loading && <p>Loading applications...</p>}
+
+            {error && (
+              <div className="alert alert-danger">
+                {error}
+              </div>
+            )}
+
+            {!loading && !error && (
+              <ApplicationList
+                applications={applications}
+                onDelete={handleDeleteApplication}
+                onEdit={handleEditApplication}
+              />
+            )}
           </main>
         </div>
       </div>
