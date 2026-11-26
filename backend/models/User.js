@@ -45,6 +45,14 @@ const userSchema = new mongoose.Schema(
             type: Date, 
             select: false
         }, 
+        PasswordResetToken: {
+            type: String, 
+            select: false
+        }, 
+        PasswordResetExpires: {
+            type: Date,
+            select: false
+        }, 
         Degree: {
             type: String, 
             default: ''
@@ -81,6 +89,8 @@ userSchema.set('toJSON', {
         delete ret.Password; 
         delete ret.EmailVerificationToken; 
         delete ret.EmailVerificationExpires;
+        delete ret.PasswordResetToken; 
+        delete ret.PasswordResetExpires; 
         return ret; 
     }
 });

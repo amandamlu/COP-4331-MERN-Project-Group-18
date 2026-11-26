@@ -53,14 +53,14 @@ const resendVerification = async (req, res, next) => {
 
         await sendEmail({
             to: user.Email, 
-            subject: 'Verify your Internship Tracker account', 
+            subject: 'Verify your SPLINT account', 
             text: `Please verify your email address: 
         
-        ${verificationUrl.toString()}
+${verificationUrl.toString()}
         
-        This link expires in 24 hours.
+This link expires in 24 hours.
         
-        If you did not request this email, you can ignore it.`
+If you did not request this email, you can ignore it.`
         }); 
 
         return res.status(200).json(response); 
