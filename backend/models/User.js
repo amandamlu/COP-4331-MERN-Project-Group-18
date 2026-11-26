@@ -37,6 +37,14 @@ const userSchema = new mongoose.Schema(
             type: Boolean, 
             default: false
         }, 
+        EmailVerificationToken: {
+            type: String, 
+            select: false
+        }, 
+        EmailVerificationExpires: {
+            type: Date, 
+            select: false
+        }, 
         Degree: {
             type: String, 
             default: ''
@@ -71,6 +79,8 @@ userSchema.methods.checkPassword = function (candidate) {
 userSchema.set('toJSON', {
     transform: (doc, ret) => {
         delete ret.Password; 
+        delete ret.EmailVerificationToken; 
+        delete ret.EmailVerificationExpires;
         return ret; 
     }
 });

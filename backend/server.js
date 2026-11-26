@@ -36,6 +36,10 @@ const logInRoutes = require("./routes/login");
 // user Route
 const userRoutes = require('./routes/userProfile');
 
+// email erification routes
+const verifyEmailRoutes = require('./routes/verifyEmail'); 
+const resendVerificationRoutes = require('./routes/resendVerification'); 
+
 // application route
 const applicationRoutes = require('./routes/application');
 
@@ -51,6 +55,9 @@ const resourceRoutes = require('./routes/resources');
 app.use("/api/auth", logInRoutes);
 
 app.use("/api/users", userRoutes); 
+
+app.use('/api/auth/verify-email', verifyEmailRoutes); 
+app.use('/api/auth/resend-verification', resendVerificationRoutes); 
 
 app.use("/api/applications", applicationRoutes); 
 
