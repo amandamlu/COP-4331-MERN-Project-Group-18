@@ -2,7 +2,7 @@ const { convert } = require('html-to-text');
 const EmailForwardingAddress = require('../models/EmailForwardingAddress');
 const EmailImport = require('../models/EmailImport');
 const User = require('../models/User');
-const { parseEmail } = require('./emailParser');
+const { parseEmailWithLLM } = require('./llmEmailParser');
 const { matchEmailToApplication } = require('./emailApplicationMatcher');
 
 const MAX_BODY_LENGTH = 100_000;
@@ -30,7 +30,7 @@ async function savePendingImport({ userId, emailId, email }) {
   const body = email.text?.trim() || (email.html ? convert(email.html, { wordwrap: false }) : '');
   const bodyText = body.slice(0, MAX_BODY_LENGTH);
   const bodyTruncated = body.length > MAX_BODY_LENGTH;
-  const parsed = parseEmail({ subject: email.subject, body: bodyText });
+  const parsed = await parseEmailWithLLM({subject: email.subject,body: bodyText});
   if (bodyTruncated) parsed.requiresReview = true;
   const match = await matchEmailToApplication({ userId, parsed, bodyTruncated });
   const importedAt = new Date();
