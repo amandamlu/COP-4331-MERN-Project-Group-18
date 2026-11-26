@@ -1,4 +1,4 @@
-[Internship_Tracker_Backend_README.md](https://github.com/user-attachments/files/34999574/Internship_Tracker_Backend_README.md)
+[Internship_Tracker_Backend_README_Updated.md](https://github.com/user-attachments/files/35446313/Internship_Tracker_Backend_README_Updated.md)
 # Internship Tracker — Backend API Reference
 
 This README documents the Express/Mongoose API used by the Internship Tracker frontend. It is based on the endpoints and controller implementations shared during development. **Check the sections marked _Verify in code_ before treating this document as a complete API contract.**
@@ -49,6 +49,10 @@ Store the token securely for your app's design and clear it on logout or authent
 | `POST` | `/api/auth/register` | Register a user | No |
 | `POST` | `/api/auth/login` | Login and obtain JWT | No |
 | `GET` | `/api/auth/me` | Get authenticated identity **(verify mounted route)** | Yes |
+| `GET` | `/api/auth/verify-email` | Confirm registration email using a token | No |
+| `POST` | `/api/auth/resend-verification` | Request a replacement email verification link | No |
+| `POST` | `/api/auth/forgot-password` | Request a password-reset email | No |
+| `POST` | `/api/auth/reset-password` | Change password using a valid reset token | No |
 | `GET` | `/api/applications` | List, search, filter, sort and paginate applications | Yes |
 | `POST` | `/api/applications` | Create application | Yes |
 | `GET` | `/api/applications/stats` | Dashboard application counts | Yes |
@@ -66,31 +70,194 @@ Store the token securely for your app's design and clear it on logout or authent
 
 ## Authentication
 
+The backend uses JWT authentication for protected endpoints. Registration creates an account with `IsVerified: false`; the user must verify their email before receiving a login JWT. Transactional emails are sent through Resend.
+
 ### Register — `POST /api/auth/register`
 
-Creates a user. The precise required body and response depend on `routes/register` and its controller; verify before wiring the final form. User model fields discussed in development include:
-
-- `FirstName`, `LastName`, `Login`, `Email`, `Password`
-- Optional/profile fields such as `Degree`, `Major`, `GraduationYear`
-
-**Never send or expose plaintext passwords beyond the registration/login request; never store them in frontend logs.** Passwords should be hashed by the backend.
-
-### Login — `POST /api/auth/login`
-
-The login controller accepts a username **or** email in the `login` field, with `password` as the password field (verify the exact casing from the current route/controller).
+Creates an account and sends a verification email. Required JSON body fields are `firstName`, `lastName`, `login`, `email`, and `password`; optional fields are `degree`, `major`, and `graduationYear`. Field names in requests are lowercase/camelCase, while the MongoDB user model uses capitalized names.
 
 ```json
 {
-  "login": "exampleuser",
-  "password": "your-password"
+  "firstName": "Test",
+  "lastName": "Student",
+  "login": "teststudent01",
+  "email": "student@example.com",
+  "password": "ExamplePassword123!",
+  "degree": "BS",
+  "major": "Computer Science",
+  "graduationYear": 2027
 }
 ```
 
-Extract the returned JWT from the login response and include it as a Bearer token on protected requests. **Verify the exact response property containing the token** in the current login controller (for example, `token`).
+The backend hashes the password using the User model's bcrypt pre-save hook, generates a random verification token, saves its SHA-256 hash and a 24-hour expiration, and sends a verification link using Resend.
+
+**Successful response — `201 Created`:**
+
+```json
+{
+  "message": "User registered. Email verification is required.",
+  "user": {
+    "id": "<user id>",
+    "firstName": "Test",
+    "lastName": "Student",
+    "email": "student@example.com",
+    "isVerified": false
+  }
+}
+```
+
+Missing required fields return `400`; an existing username or email returns `409`. Passwords and verification token hashes must not be included in responses.
+
+### Verify email — `GET /api/auth/verify-email`
+
+Public endpoint. Accepts a `token` query parameter containing the 64-character hexadecimal token from the registration email.
+
+```http
+GET /api/auth/verify-email?token=<VERIFICATION_TOKEN>
+```
+
+**Success — `200 OK`:**
+
+```json
+{
+  "message": "Email verified successfully"
+}
+```
+
+A valid, unexpired token sets `IsVerified` to `true` and removes the stored token hash and expiration. An invalid, expired, or already used token returns `400`:
+
+```json
+{
+  "error": "Verification link is invalid or expired"
+}
+```
+
+### Resend verification — `POST /api/auth/resend-verification`
+
+Public endpoint for an account that has not yet verified its email. The new link expires after 24 hours and replaces the previous token.
+
+**Request body:**
+
+```json
+{
+  "email": "student@example.com"
+}
+```
+
+**Response — `200 OK`:**
+
+```json
+{
+  "message": "If this email has an unverified account, a verification link will be sent."
+}
+```
+
+This response is also returned when no matching unverified account exists, so the endpoint does not explicitly disclose account status. Missing or blank email returns `400`.
+
+### Login — `POST /api/auth/login`
+
+Accepts a username **or** email in `login`, and a password in `password`.
+
+```json
+{
+  "login": "teststudent01",
+  "password": "ExamplePassword123!"
+}
+```
+
+The backend first checks the username/email and password, then checks `IsVerified` before issuing a JWT. Success returns `200` with `message: "Login successful"`, a `token`, and the user object (with the password omitted). Unknown users or incorrect passwords return `401` with `Invalid login or password`.
+
+If credentials are valid but the email is not verified, the endpoint returns **`403 Forbidden`**:
+
+```json
+{
+  "error": "Please verify your email before logging in."
+}
+```
 
 ### Authenticated user — `GET /api/auth/me` (verify in code)
 
-Previously discussed as a protected endpoint. Confirm that the route is still mounted and check the returned user profile shape before using it.
+Requires a Bearer JWT. Returns the authenticated user, subject to the route being mounted in the current deployment.
+
+## Password Recovery
+
+Password recovery uses temporary reset tokens sent through Resend. The password-reset token is separate from the email verification token and expires **15 minutes** after issuance.
+
+### Forgot password — `POST /api/auth/forgot-password`
+
+Public endpoint. Send the registered email address:
+
+```json
+{
+  "email": "student@example.com"
+}
+```
+
+**Response — `200 OK`:**
+
+```json
+{
+  "message": "If an account exists with this email, a password reset link will be sent."
+}
+```
+
+For an existing account, the backend generates a random token, stores its SHA-256 hash and 15-minute expiration, and emails a link to the frontend's `/reset-password` page. The same public response is used when the account is not found. A missing or blank email returns `400`.
+
+### Reset password — `POST /api/auth/reset-password`
+
+Public endpoint. Submit the raw token from the password-reset email and a new password of at least eight characters:
+
+```json
+{
+  "token": "<RESET_TOKEN>",
+  "newPassword": "NewExamplePassword123!"
+}
+```
+
+**Success — `200 OK`:**
+
+```json
+{
+  "message": "Password reset successfully"
+}
+```
+
+On success, the existing bcrypt pre-save hook hashes the new password, and the stored password-reset token and expiration are removed. The old password no longer works; subsequent login uses the new password. Reusing an already consumed or expired token returns `400`:
+
+```json
+{
+  "error": "Password reset link is invalid or expired"
+}
+```
+
+Malformed tokens or passwords shorter than eight characters also return `400`. The current implementation permits setting a password equal to the existing password.
+
+## Resend Email Configuration
+
+The backend sends account-verification and password-reset messages through `services/sendEmail.js`, using a separate sending-only Resend API key. Existing inbound email forwarding uses `services/resendClient.js` and its own configuration.
+
+**Backend environment variables** (example values only):
+
+```dotenv
+RESEND_SENDING_API_KEY=re_your_sending_key
+EMAIL_FROM="Internship Tracker <no-reply@mail.lamp.alugo.org>"
+FRONTEND_URL=http://localhost:5173
+```
+
+`FRONTEND_URL` must be the actual reachable React application URL in a deployed environment. Email links use `/verify-email?token=...` and `/reset-password?token=...`. The separate inbound integration may also use `RESEND_API_KEY` and `RESEND_WEBHOOK_SECRET`. Never commit `.env` or API credentials to Git, and never expose Resend keys in the React frontend.
+
+### Frontend integration notes
+
+| Page / action | Backend request | Required behavior |
+|---|---|---|
+| Registration | `POST /api/auth/register` | Show a prompt to check the user's email |
+| Login | `POST /api/auth/login` | Handle the `403` unverified-email response |
+| Verify email page | `GET /api/auth/verify-email?token=...` | Read token from URL, call API, display result |
+| Resend verification | `POST /api/auth/resend-verification` | Send `{ "email": "..." }` |
+| Forgot password | `POST /api/auth/forgot-password` | Send `{ "email": "..." }` and display generic confirmation |
+| Reset password page | `POST /api/auth/reset-password` | Read token from URL, send `token` and `newPassword` |
+
+The frontend should use `URLSearchParams` to encode query parameters, and should not require a JWT for these verification/recovery endpoints. The verification and reset URLs in outgoing emails point to React pages, **not** directly to the API endpoints.
 
 ## Applications
 
@@ -413,12 +580,23 @@ Use plain category names (for example, `Interview Preparation`) with `URLSearchP
 | `201` | Created successfully |
 | `400` | Invalid ID, invalid status, missing required field, or invalid input |
 | `401` | Bearer token missing; invalid authenticated ID checks may also return 401 |
-| `403` | Invalid or expired JWT with current middleware |
+| `403` | Invalid or expired JWT, or valid credentials for an unverified account |
 | `404` | Record not found for this user, or unmatched route |
 | `409` | Possible duplicate constraint violation if a controller handles unique indexes (not confirmed for all routes) |
 | `500` | Backend/server error |
 
 Error responses are not perfectly uniform across controllers. Some use `{ "error": "..." }`, while the JWT middleware uses `{ "message": "..." }`. The sample fetch helper checks both.
+
+### Authentication testing checklist (Bruno)
+
+- [x] Registration sends a verification email through Resend.
+- [x] A valid verification token sets `IsVerified: true`; reuse fails.
+- [x] Valid credentials for an unverified account return `403`.
+- [x] A verified account can log in and receive a JWT.
+- [x] Resend-verification issues a working replacement link.
+- [x] Forgot-password emails a 15-minute reset link.
+- [x] Reset-password changes the stored password and invalidates the used token.
+- [x] Logging in with the old password fails; logging in with the new password succeeds.
 
 **Maintenance:** Update this README when route paths, request field allowlists, response shapes, or model field types change. The implementation in `routes/`, `controllers/`, and `models/` remains the source of truth.
 
