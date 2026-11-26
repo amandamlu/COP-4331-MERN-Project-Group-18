@@ -19,6 +19,7 @@
     "html-to-text": "^10.0.1",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.11.4",
+    "openai": "^7.65.0",
     "resend": "^6.38.1"
   },
   "devDependencies": {
