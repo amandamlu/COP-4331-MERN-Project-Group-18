@@ -1,3 +1,4 @@
+[Internship_Tracker_Backend_README_Updated.md](https://github.com/user-attachments/files/35446313/Internship_Tracker_Backend_README_Updated.md)
 # Internship Tracker — Backend API Reference
 
 This README documents the Express/Mongoose API used by the Internship Tracker frontend. It is based on the endpoints and controller implementations shared during development. **Check the sections marked _Verify in code_ before treating this document as a complete API contract.**
@@ -48,6 +49,10 @@ Store the token securely for your app's design and clear it on logout or authent
 | `POST` | `/api/auth/register` | Register a user | No |
 | `POST` | `/api/auth/login` | Login and obtain JWT | No |
 | `GET` | `/api/auth/me` | Get authenticated identity **(verify mounted route)** | Yes |
+| `GET` | `/api/auth/verify-email` | Confirm registration email using a token | No |
+| `POST` | `/api/auth/resend-verification` | Request a replacement email verification link | No |
+| `POST` | `/api/auth/forgot-password` | Request a password-reset email | No |
+| `POST` | `/api/auth/reset-password` | Change password using a valid reset token | No |
 | `GET` | `/api/applications` | List, search, filter, sort and paginate applications | Yes |
 | `POST` | `/api/applications` | Create application | Yes |
 | `GET` | `/api/applications/stats` | Dashboard application counts | Yes |
@@ -59,36 +64,200 @@ Store the token securely for your app's design and clear it on logout or authent
 | `POST` | `/api/applications/:id/contacts` | Create a contact for one application | Yes |
 | `GET` | `/api/contacts` | Global searchable contact directory | Yes |
 | `GET` | `/api/dashboard/followups` | Next upcoming contact follow-ups | Yes |
+| `GET` | `/api/resources` | List shared career resources; optional category filtering and keyword search | Yes |
 
 **Additional routes:** User-profile endpoints, single-contact update/delete endpoints, company endpoints, internship-offer endpoints, and other auth actions are **not fully verified** from the files provided. See [Routes requiring confirmation](#routes-requiring-confirmation); do not assume paths or payloads until checked.
 
 ## Authentication
 
+The backend uses JWT authentication for protected endpoints. Registration creates an account with `IsVerified: false`; the user must verify their email before receiving a login JWT. Transactional emails are sent through Resend.
+
 ### Register — `POST /api/auth/register`
 
-Creates a user. The precise required body and response depend on `routes/register` and its controller; verify before wiring the final form. User model fields discussed in development include:
-
-- `FirstName`, `LastName`, `Login`, `Email`, `Password`
-- Optional/profile fields such as `Degree`, `Major`, `GraduationYear`
-
-**Never send or expose plaintext passwords beyond the registration/login request; never store them in frontend logs.** Passwords should be hashed by the backend.
-
-### Login — `POST /api/auth/login`
-
-The login controller accepts a username **or** email in the `login` field, with `password` as the password field (verify the exact casing from the current route/controller).
+Creates an account and sends a verification email. Required JSON body fields are `firstName`, `lastName`, `login`, `email`, and `password`; optional fields are `degree`, `major`, and `graduationYear`. Field names in requests are lowercase/camelCase, while the MongoDB user model uses capitalized names.
 
 ```json
 {
-  "login": "exampleuser",
-  "password": "your-password"
+  "firstName": "Test",
+  "lastName": "Student",
+  "login": "teststudent01",
+  "email": "student@example.com",
+  "password": "ExamplePassword123!",
+  "degree": "BS",
+  "major": "Computer Science",
+  "graduationYear": 2027
 }
 ```
 
-Extract the returned JWT from the login response and include it as a Bearer token on protected requests. **Verify the exact response property containing the token** in the current login controller (for example, `token`).
+The backend hashes the password using the User model's bcrypt pre-save hook, generates a random verification token, saves its SHA-256 hash and a 24-hour expiration, and sends a verification link using Resend.
+
+**Successful response — `201 Created`:**
+
+```json
+{
+  "message": "User registered. Email verification is required.",
+  "user": {
+    "id": "<user id>",
+    "firstName": "Test",
+    "lastName": "Student",
+    "email": "student@example.com",
+    "isVerified": false
+  }
+}
+```
+
+Missing required fields return `400`; an existing username or email returns `409`. Passwords and verification token hashes must not be included in responses.
+
+### Verify email — `GET /api/auth/verify-email`
+
+Public endpoint. Accepts a `token` query parameter containing the 64-character hexadecimal token from the registration email.
+
+```http
+GET /api/auth/verify-email?token=<VERIFICATION_TOKEN>
+```
+
+**Success — `200 OK`:**
+
+```json
+{
+  "message": "Email verified successfully"
+}
+```
+
+A valid, unexpired token sets `IsVerified` to `true` and removes the stored token hash and expiration. An invalid, expired, or already used token returns `400`:
+
+```json
+{
+  "error": "Verification link is invalid or expired"
+}
+```
+
+### Resend verification — `POST /api/auth/resend-verification`
+
+Public endpoint for an account that has not yet verified its email. The new link expires after 24 hours and replaces the previous token.
+
+**Request body:**
+
+```json
+{
+  "email": "student@example.com"
+}
+```
+
+**Response — `200 OK`:**
+
+```json
+{
+  "message": "If this email has an unverified account, a verification link will be sent."
+}
+```
+
+This response is also returned when no matching unverified account exists, so the endpoint does not explicitly disclose account status. Missing or blank email returns `400`.
+
+### Login — `POST /api/auth/login`
+
+Accepts a username **or** email in `login`, and a password in `password`.
+
+```json
+{
+  "login": "teststudent01",
+  "password": "ExamplePassword123!"
+}
+```
+
+The backend first checks the username/email and password, then checks `IsVerified` before issuing a JWT. Success returns `200` with `message: "Login successful"`, a `token`, and the user object (with the password omitted). Unknown users or incorrect passwords return `401` with `Invalid login or password`.
+
+If credentials are valid but the email is not verified, the endpoint returns **`403 Forbidden`**:
+
+```json
+{
+  "error": "Please verify your email before logging in."
+}
+```
 
 ### Authenticated user — `GET /api/auth/me` (verify in code)
 
-Previously discussed as a protected endpoint. Confirm that the route is still mounted and check the returned user profile shape before using it.
+Requires a Bearer JWT. Returns the authenticated user, subject to the route being mounted in the current deployment.
+
+## Password Recovery
+
+Password recovery uses temporary reset tokens sent through Resend. The password-reset token is separate from the email verification token and expires **15 minutes** after issuance.
+
+### Forgot password — `POST /api/auth/forgot-password`
+
+Public endpoint. Send the registered email address:
+
+```json
+{
+  "email": "student@example.com"
+}
+```
+
+**Response — `200 OK`:**
+
+```json
+{
+  "message": "If an account exists with this email, a password reset link will be sent."
+}
+```
+
+For an existing account, the backend generates a random token, stores its SHA-256 hash and 15-minute expiration, and emails a link to the frontend's `/reset-password` page. The same public response is used when the account is not found. A missing or blank email returns `400`.
+
+### Reset password — `POST /api/auth/reset-password`
+
+Public endpoint. Submit the raw token from the password-reset email and a new password of at least eight characters:
+
+```json
+{
+  "token": "<RESET_TOKEN>",
+  "newPassword": "NewExamplePassword123!"
+}
+```
+
+**Success — `200 OK`:**
+
+```json
+{
+  "message": "Password reset successfully"
+}
+```
+
+On success, the existing bcrypt pre-save hook hashes the new password, and the stored password-reset token and expiration are removed. The old password no longer works; subsequent login uses the new password. Reusing an already consumed or expired token returns `400`:
+
+```json
+{
+  "error": "Password reset link is invalid or expired"
+}
+```
+
+Malformed tokens or passwords shorter than eight characters also return `400`. The current implementation permits setting a password equal to the existing password.
+
+## Resend Email Configuration
+
+The backend sends account-verification and password-reset messages through `services/sendEmail.js`, using a separate sending-only Resend API key. Existing inbound email forwarding uses `services/resendClient.js` and its own configuration.
+
+**Backend environment variables** (example values only):
+
+```dotenv
+RESEND_SENDING_API_KEY=re_your_sending_key
+EMAIL_FROM="Internship Tracker <no-reply@mail.lamp.alugo.org>"
+FRONTEND_URL=http://localhost:5173
+```
+
+`FRONTEND_URL` must be the actual reachable React application URL in a deployed environment. Email links use `/verify-email?token=...` and `/reset-password?token=...`. The separate inbound integration may also use `RESEND_API_KEY` and `RESEND_WEBHOOK_SECRET`. Never commit `.env` or API credentials to Git, and never expose Resend keys in the React frontend.
+
+### Frontend integration notes
+
+| Page / action | Backend request | Required behavior |
+|---|---|---|
+| Registration | `POST /api/auth/register` | Show a prompt to check the user's email |
+| Login | `POST /api/auth/login` | Handle the `403` unverified-email response |
+| Verify email page | `GET /api/auth/verify-email?token=...` | Read token from URL, call API, display result |
+| Resend verification | `POST /api/auth/resend-verification` | Send `{ "email": "..." }` |
+| Forgot password | `POST /api/auth/forgot-password` | Send `{ "email": "..." }` and display generic confirmation |
+| Reset password page | `POST /api/auth/reset-password` | Read token from URL, send `token` and `newPassword` |
+
+The frontend should use `URLSearchParams` to encode query parameters, and should not require a JWT for these verification/recovery endpoints. The verification and reset URLs in outgoing emails point to React pages, **not** directly to the API endpoints.
 
 ## Applications
 
@@ -316,6 +485,93 @@ The controller uses `.populate('ApplicationId', 'Company Role Status')`. So an i
 
 The object above shows selected fields, not every contact field. The frontend should tolerate an unpopulated/missing application reference for old or inconsistent data, rather than assuming every populated object is present.
 
+## Resources
+
+### Browse, search, and filter — `GET /api/resources`
+
+Returns career-related links from the shared MongoDB `Resources` collection. Resources are **the same for every authenticated user**; the collection does not have a `UserId` and this endpoint does not apply user-specific filtering.
+
+The endpoint is **read-only** for users. Resource records are maintained by the team (for example, using `backend/scripts/seedResources.js`), rather than created or edited from the frontend.
+
+**Authentication:** Requires `Authorization: Bearer <JWT>`.
+
+**Query parameters** (both optional):
+
+| Query | Meaning | Example |
+|---|---|---|
+| `category` | Exact, case-sensitive match against the resource's `Category` field | `?category=Interview%20Preparation` |
+| `q` | Case-insensitive, partial text search across `Title` and `Description` | `?q=resume` |
+
+Both parameters can be combined. When combined, results must match the specified category **and** contain the search text in the title or description. Results are sorted by `Title` in ascending order (A–Z). Without parameters, all resources are returned.
+
+**Supported categories:**
+
+- `Finding Internships`
+- `Resumes and Applications`
+- `Interview Preparation`
+- `Career Development`
+
+**Resource document fields:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `_id` | MongoDB ObjectId/string | Server-generated identifier |
+| `Category` | string | One of the four supported categories |
+| `Title` | string | Resource title |
+| `Description` | string | Short description of the resource |
+| `URL` | string | External website URL |
+
+**Example request:**
+
+```http
+GET /api/resources?category=Interview%20Preparation&q=coding
+Authorization: Bearer <JWT_FROM_LOGIN>
+```
+
+**Example `200 OK` response:**
+
+```json
+{
+  "resources": [
+    {
+      "_id": "691b9d4c2f8a103e5c7d9210",
+      "Category": "Interview Preparation",
+      "Title": "LeetCode",
+      "Description": "Practice coding problems for technical interviews.",
+      "URL": "https://leetcode.com/"
+    }
+  ]
+}
+```
+
+The example `_id` and response document are illustrative. The exact data returned depends on the resources currently seeded in MongoDB.
+
+If nothing matches, the API returns `200 OK` with:
+
+```json
+{
+  "resources": []
+}
+```
+
+**Frontend usage** (with `API_BASE` ending in `/api`):
+
+```js
+const params = new URLSearchParams();
+if (selectedCategory) params.set('category', selectedCategory);
+if (searchText.trim()) params.set('q', searchText.trim());
+
+const query = params.toString();
+const { resources } = await apiFetch(
+  `/resources${query ? `?${query}` : ''}`,
+  { token }
+);
+```
+
+Use plain category names (for example, `Interview Preparation`) with `URLSearchParams`, which performs URL encoding automatically. **Do not pre-encode** spaces as `%20` when entering values in a query-parameter editor or passing them to `URLSearchParams`: double-encoding can cause an empty result. The frontend should render each resource as an external link and should not assume this endpoint is paginated.
+
+**Possible errors:** Missing JWT may return `401`; invalid or expired JWT may return `403`; unexpected database failures return `500` with `{ "message": "Failed to retrieve resources" }`.
+
 ## Common errors
 
 | Status | What it generally means |
@@ -324,47 +580,23 @@ The object above shows selected fields, not every contact field. The frontend sh
 | `201` | Created successfully |
 | `400` | Invalid ID, invalid status, missing required field, or invalid input |
 | `401` | Bearer token missing; invalid authenticated ID checks may also return 401 |
-| `403` | Invalid or expired JWT with current middleware |
+| `403` | Invalid or expired JWT, or valid credentials for an unverified account |
 | `404` | Record not found for this user, or unmatched route |
 | `409` | Possible duplicate constraint violation if a controller handles unique indexes (not confirmed for all routes) |
 | `500` | Backend/server error |
 
 Error responses are not perfectly uniform across controllers. Some use `{ "error": "..." }`, while the JWT middleware uses `{ "message": "..." }`. The sample fetch helper checks both.
 
-## Recommended frontend data flow
+### Authentication testing checklist (Bruno)
 
-1. Register or log in. Read the JWT and authenticated user details from the actual login response.
-2. Attach `Authorization: Bearer <token>` to every protected request.
-3. Dashboard page: request `/applications/stats`, `/applications/recent`, and `/dashboard/followups` in parallel.
-4. Applications page: use `/applications` with filters/pagination; create/edit/delete through POST/PATCH/DELETE.
-5. Application details: use `/applications/:id` and `/applications/:id/contacts`.
-6. Contacts directory: use `/contacts?q=...&page=...&limit=...`.
-7. After creating, editing, or deleting applications/contacts, refetch affected dashboard and list data. The API does **not** push updates to an open frontend automatically.
-8. On JWT expiration/auth errors, clear stale session state and ask the user to log in again.
-
-## Routes requiring confirmation
-
-Before advertising these as stable frontend endpoints, check the implementation in the repository:
-
-- `routes/userProfile.js`: exact profile read/update/delete paths, methods, bodies, and response shapes.
-- `routes/contact.js` and its controller: exact single-contact update/delete endpoints, success response envelopes, and whether `CompanyId` is accepted.
-- `routes/register.js`, `routes/login.js`: exact login/register request and response properties; verify `/api/auth/me` mounting.
-- Company and internship-offer routes: Mongoose models may exist without corresponding API endpoints. **Do not assume CRUD routes are available.**
-- Dashboard follow-ups and global contacts route registrations: confirm the corresponding routes are mounted in the server entry point on the branch/deployment being used.
-
-## Testing checklist (Bruno)
-
-- [ ] Login returns a JWT; authenticated requests succeed with `Authorization: Bearer {{token}}`.
-- [ ] GET `/api/applications/stats` changes after application create/update/delete.
-- [ ] GET `/api/applications/recent` lists the newest updated applications first (after legacy date migration).
-- [ ] GET `/api/dashboard/followups` returns upcoming contacts in date order.
-- [ ] GET `/api/contacts?q=...` searches across applications.
-- [ ] GET `/api/applications/:id/contacts` returns only that application's contacts.
-- [ ] User A cannot access User B's records.
-- [ ] Missing and expired JWTs are rejected.
-- [ ] Deleting an application removes its related contacts.
-
----
+- [x] Registration sends a verification email through Resend.
+- [x] A valid verification token sets `IsVerified: true`; reuse fails.
+- [x] Valid credentials for an unverified account return `403`.
+- [x] A verified account can log in and receive a JWT.
+- [x] Resend-verification issues a working replacement link.
+- [x] Forgot-password emails a 15-minute reset link.
+- [x] Reset-password changes the stored password and invalidates the used token.
+- [x] Logging in with the old password fails; logging in with the new password succeeds.
 
 **Maintenance:** Update this README when route paths, request field allowlists, response shapes, or model field types change. The implementation in `routes/`, `controllers/`, and `models/` remains the source of truth.
 
