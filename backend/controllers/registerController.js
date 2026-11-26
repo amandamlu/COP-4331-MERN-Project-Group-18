@@ -1,4 +1,6 @@
+const crypto = require('crypto'); 
 const User = require('../models/User'); 
+const {sendEmail} = require('../services/sendEmail');
 
 // POST api/auth/register
 exports.register = async (req, res, next) => {
@@ -24,6 +26,18 @@ exports.register = async (req, res, next) => {
             return res.status(409).json({error: 'Username or email already registered'});
         }
 
+        // Verification token for email verification 
+        const verificationToken = crypto.randomBytes(32).toString('hex'); 
+
+        const hashedToken = crypto
+            .createHash('sha256')
+            .update(verificationToken)
+            .digest('hex');
+
+        const verificationExpires = new Date(
+            Date.now() + 24 * 60 * 60 * 1000
+        );
+
         // Creating User
         const user = await User.create({
             FirstName: String(firstName).trim(),
@@ -32,10 +46,34 @@ exports.register = async (req, res, next) => {
             Password: String(password), 
             Email: String(email).trim().toLowerCase(), 
             IsVerified: false,
+            EmailVerificationToken: hashedToken, 
+            EmailVerificationExpires: verificationExpires,
             Degree: String(degree), 
             Major: String(major),
             GraduationYear: graduationYear || undefined
         });
+
+        // Verification email
+        const verificationUrl = new URL(
+            '/verify-email', 
+            process.env.FRONTEND_URL
+        ); 
+
+        verificationUrl.searchParams.set('token', verificationToken); 
+
+        await sendEmail({
+            to: user.Email, 
+            subject: 'Verify your Internship Tracker account', 
+            text: `Welcome to Internship Tracker!
+            
+        Please verify your email address by visiting: 
+        
+        ${verificationUrl.toString()}
+        
+        This verification link expires in 24 hours.
+        
+        If you did not create this account, you can ignore this email.`
+        })
 
         // return the created user
         return res
@@ -43,7 +81,13 @@ exports.register = async (req, res, next) => {
             .location(`/api/users/${user._id}`)
             .json({
                 message: 'User registered successfully',
-                user
+                user: {
+                    id: user._id, 
+                    firstName: user.FirstName, 
+                    lastName: user.LastName, 
+                    email: user.Email, 
+                    isVerified: user.IsVerified
+                }
             });
 
     } catch (err) {
