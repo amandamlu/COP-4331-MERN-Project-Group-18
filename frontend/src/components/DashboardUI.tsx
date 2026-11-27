@@ -1,8 +1,14 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { API_BASE_URL } from '../config/api';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import ApplicationList, { type ApplicationData } from './ApplicationList';
 import EmailReviewTab from './EmailReviewTab';
+import { useDashboardApplications } from '../hooks/useDashboardApplications';
 import { useEmailImports } from '../hooks/useEmailImports';
+import { ApiError } from '../services/apiClient';
+import {
+  APPLICATION_STATUSES,
+  type EmailImportApprovePayload,
+} from '../types/emailImport';
+import { apiFetch } from '../services/apiClient';
 
 type ActiveTab = 'dashboard' | 'email-review';
 
@@ -14,15 +20,52 @@ interface DashboardStats {
 
 function DashboardUI() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
-
-  const [applications, setApplications] = useState<ApplicationData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [statsVersion, setStatsVersion] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchStats() {
+      try {
+        const data = await apiFetch<DashboardStats>(
+          '/api/applications/stats'
+        );
+
+        if (!cancelled) {
+          setStats(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Failed to load dashboard statistics:', err);
+        }
+      }
+    }
+
+    void fetchStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [statsVersion]);
+
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const {
+    applications,
+    isLoading: isLoadingApps,
+    error: appsError,
+    refreshApplications,
+    createApplication,
+    updateApplication,
+    deleteApplication,
+    syncApprovedApplication,
+  } = useDashboardApplications();
 
   const {
     forwardingAddress,
@@ -50,257 +93,108 @@ function DashboardUI() {
   const [status, setStatus] = useState('Applied');
   const [salaryHourly, setSalaryHourly] = useState('');
   const [dateApplied, setDateApplied] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function fetchApplications() {
-      try {
-        const token = sessionStorage.getItem('authToken');
-
-        if (!token) {
-          setError('You must be logged in to view applications.');
-          return;
-        }
-
-        const response = await fetch(
-          `${API_BASE_URL}/api/applications?q=${encodeURIComponent(debouncedSearch)}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            signal: controller.signal,
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to load applications.');
-        }
-
-        const result = await response.json();
-
-        const mappedApplications: ApplicationData[] = result.data.map(
-          (app: {
-            _id: string;
-            Company: string;
-            Role: string;
-            Location?: string;
-            Status: string;
-            SalaryHourly?: number;
-            DateApplied?: string;
-          }) => ({
-            id: app._id,
-            company: app.Company,
-            role: app.Role,
-            location: app.Location ?? '',
-            status: app.Status,
-            salaryHourly: String(app.SalaryHourly ?? 0),
-            dateApplied: app.DateApplied ?? '',
-          })
-        );
-
-        setApplications(mappedApplications);
-
-      } catch (err) {
-        if (controller.signal.aborted) return;
-        console.error(err);
-        setError('Unable to load your applications.');
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    fetchApplications();
-
-    return () => controller.abort();
-  }, [debouncedSearch]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function fetchStats() {
-      try {
-        const token = sessionStorage.getItem('authToken');
-        if (!token) return;
-
-        const response = await fetch(
-          `${API_BASE_URL}/api/applications/stats`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            signal: controller.signal,
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to retrieve statistics.');
-        }
-
-        const data: DashboardStats = await response.json();
-        setStats(data);
-      } catch (err) {
-        if (!controller.signal.aborted) {
-          console.error('Dashboard statistics:', err);
-        }
-      }
-    }
-
-    fetchStats();
-
-    return () => controller.abort();
-  }, [statsVersion]);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 350);
-
-    return () => window.clearTimeout(timeout);
-  }, [search]);
-
-function handleEditApplication(app: ApplicationData) {
-  setEditingId(app.id);
-
-  setCompany(app.company);
-  setRole(app.role);
-  setLocation(app.location);
-  setStatus(app.status);
-  setSalaryHourly(app.salaryHourly);
-  setDateApplied(app.dateApplied);
-
-  setError('');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-  
-async function handleAddApplication(e: FormEvent) {
-  e.preventDefault();
-  setError('');
-
-  try {
-    const token = sessionStorage.getItem('authToken');
-
-    if (!token) {
-      setError('You must be logged in to add applications.');
-      return;
-    }
-
-    const response = await fetch(
-      editingId
-        ? `${API_BASE_URL}/api/applications/${editingId}`
-        : `${API_BASE_URL}/api/applications`,
-      {
-        method: editingId ? 'PATCH' : 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            Company: company.trim(),
-            Role: role.trim(),
-            Location: location.trim(),
-            Status: status,
-            ...(salaryHourly !== '' && {
-              SalaryHourly: Number(salaryHourly),
-            }),
-            ...(dateApplied !== '' && {
-              DateApplied: dateApplied,
-            }),
-          }),
-        }
-      );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to add application.');
-    }
-
-    const newApp: ApplicationData = {
-      id: data._id,
-      company: data.Company,
-      role: data.Role,
-      location: data.Location ?? '',
-      status: data.Status,
-      salaryHourly: String(data.SalaryHourly ?? 0),
-      dateApplied: data.DateApplied ?? '',
-    };
-
-    
-    if (editingId) {
-      setApplications((prev) =>
-        prev.map((app) => app.id === editingId ? newApp : app)
-      );
-    } else {
-      setApplications((prev) => [newApp, ...prev]);
-      setStatsVersion((prev) => prev + 1);
-    }
-
+  function resetForm() {
     setEditingId(null);
-
-
+    setShowForm(false);
+    setFormError(null);
     setCompany('');
     setRole('');
     setLocation('');
     setStatus('Applied');
     setSalaryHourly('');
     setDateApplied('');
-
-  } catch (err) {
-    setError(
-      err instanceof Error ? err.message : 'Unable to add application.'
-    );
   }
-}
 
-async function handleDeleteApplication(id: string) {
-  const confirmed = window.confirm(
-    'Are you sure you want to delete this application? Its associated contacts will also be deleted.'
+  function handleStartEdit(app: ApplicationData) {
+    setEditingId(app.id);
+    setShowForm(true);
+    setFormError(null);
+    setCompany(app.company);
+    setRole(app.role);
+    setLocation(app.location);
+    setStatus(app.status);
+    setSalaryHourly(app.salaryHourly);
+    setDateApplied(app.dateApplied);
+  }
+
+  async function handleSaveApplication(e: FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    setIsSaving(true);
+
+    const payload = {
+      company,
+      role,
+      location,
+      status,
+      salaryHourly,
+      dateApplied,
+    };
+
+    try {
+      if (editingId) {
+        await updateApplication(editingId, payload);
+      } else {
+        await createApplication(payload);
+      }
+      setStatsVersion((prev) => prev + 1);
+      resetForm();
+    } catch (err) {
+      setFormError(
+        err instanceof ApiError
+          ? err.message
+          : 'Failed to save application.',
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDeleteApplication(id: string) {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this application? Its associated contacts will also be deleted.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await deleteApplication(id);
+      setStatsVersion((prev) => prev + 1);
+      if (editingId === id) {
+        resetForm();
+      }
+    } catch (err) {
+      setFormError(
+        err instanceof ApiError
+          ? err.message
+          : 'Failed to delete application.',
+      );
+    }
+  }
+
+  const handleApproveAndSync = useCallback(
+    async (id: string, payload?: EmailImportApprovePayload) => {
+      const result = await approveImport(id, payload);
+      if (result.ok) {
+        syncApprovedApplication(result.application);
+        setStatsVersion((prev) => prev + 1);
+      }
+      return result;
+    },
+    [approveImport, syncApprovedApplication],
   );
 
-  if (!confirmed) return;
-
-  setError('');
-
-  try {
-    const token = sessionStorage.getItem('authToken');
-
-    if (!token) {
-      setError('You must be logged in to delete applications.');
-      return;
-    }
-
-    const response = await fetch(
-      `${API_BASE_URL}/api/applications/${id}`,
-      {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || 'Failed to delete application.');
-    }
-
-    setApplications((prev) =>
-      prev.filter((app) => app.id !== id)
-    );
-    setStatsVersion((prev) => prev + 1);
-
-  } catch (err) {
-    setError(
-      err instanceof Error
-        ? err.message
-        : 'Unable to delete application.'
-    );
-  }
-}
+  const filteredApplications = applications.filter((app) => {
+    const query = search.toLowerCase();
+    const matchesSearch =
+      app.company.toLowerCase().includes(query) ||
+      app.role.toLowerCase().includes(query) ||
+      app.location.toLowerCase().includes(query) ||
+      app.status.toLowerCase().includes(query);
+    const matchesStatus = statusFilter === 'All' || app.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="dashboard-wrapper">
@@ -367,154 +261,226 @@ async function handleDeleteApplication(id: string) {
           </nav>
 
           {/* Main Content Area */}
-          <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4 pt-3">
+          <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4 pt-3 pb-4">
             {activeTab === 'dashboard' ? (
               <>
-            <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-              <h1 className="h2">Dashboard</h1>
-            </div>
-
-            <div className="row g-3 mb-4">
-              {[
-                ['Total Applications', stats?.totalApplications],
-                ['Interviewing', stats?.interviewing],
-                ['Offers', stats?.offers],
-              ].map(([label, value]) => (
-                <div className="col-md-4" key={label}>
-                  <div className="card shadow-sm p-3">
-                    <h3 className="h6 text-secondary">{label}</h3>
-                    <h2 className="mb-0">{value ?? '—'}</h2>
+                <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+                  <h1 className="h2 mb-0">Dashboard</h1>
+                  <div className="d-flex gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => void refreshApplications()}
+                      disabled={isLoadingApps}
+                    >
+                      <i className="bi bi-arrow-clockwise me-1"></i>
+                      Refresh
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => {
+                        if (showForm) {
+                          resetForm();
+                        } else {
+                          setShowForm(true);
+                        }
+                      }}
+                    >
+                      <i className={`bi ${showForm ? 'bi-x-lg' : 'bi-plus-lg'} me-1`}></i>
+                      {showForm ? 'Close' : 'Add Application'}
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
+                {/* Dashboard Statistics */}
+                <div className="row g-3 mb-4">
+                  {[
+                    { label: 'Total Applications', value: stats?.totalApplications },
+                    { label: 'Interviewing', value: stats?.interviewing },
+                    { label: 'Offers', value: stats?.offers },
+                  ].map(({ label, value }) => (
+                    <div className="col-md-4" key={label}>
+                      <div className="card shadow-sm p-3 border-0">
+                        <h3 className="h6 text-secondary">{label}</h3>
+                        <h2 className="mb-0">{value ?? '—'}</h2>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
-            {/* Add Application Form */}
-            <div className="card mb-4 p-3 bg-white shadow-sm">
-              <h2 className="h5 mb-3">{editingId ? 'Edit Application' : 'Add New Application'}</h2>
-              <form onSubmit={handleAddApplication}>
-                <div className="row g-2 mb-3">
-                  <div className="col-md-4">
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Company (e.g. AMD)"
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      required
-                    />
+                {formError && (
+                  <div className="alert alert-danger alert-dismissible fade show py-2 small" role="alert">
+                    {formError}
+                    <button
+                      type="button"
+                      className="btn-close"
+                      aria-label="Close"
+                      onClick={() => setFormError(null)}
+                    ></button>
                   </div>
-                  <div className="col-md-4">
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Role (e.g. Software Intern)"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      required
-                    />
+                )}
+
+                {/* Collapsible Add / Edit Application Form */}
+                {showForm && (
+                  <div className="card mb-4 p-3 bg-white shadow-sm border-0">
+                    <h2 className="h5 mb-3">
+                      {editingId ? 'Edit Application' : 'Add New Application'}
+                    </h2>
+                    <form onSubmit={(e) => void handleSaveApplication(e)}>
+                      <div className="row g-2 mb-3">
+                        <div className="col-md-4">
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Company (e.g. AMD)"
+                            value={company}
+                            onChange={(e) => setCompany(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="col-md-4">
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Role (e.g. Software Intern)"
+                            value={role}
+                            onChange={(e) => setRole(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="col-md-4">
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Location (e.g. Orlando, FL)"
+                            value={location}
+                            onChange={(e) => setLocation(e.target.value)}
+                          />
+                        </div>
+                        <div className="col-md-4">
+                          <select
+                            className="form-select"
+                            value={status}
+                            onChange={(e) => setStatus(e.target.value)}
+                          >
+                            {APPLICATION_STATUSES.map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-md-4">
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            className="form-control"
+                            placeholder="Hourly Pay ($)"
+                            value={salaryHourly}
+                            onChange={(e) => setSalaryHourly(e.target.value)}
+                          />
+                        </div>
+                        <div className="col-md-4">
+                          <input
+                            type="date"
+                            className="form-control"
+                            value={dateApplied}
+                            onChange={(e) => setDateApplied(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="d-flex gap-2">
+                        <button
+                          type="submit"
+                          className="btn btn-primary btn-sm"
+                          disabled={isSaving}
+                        >
+                          {isSaving
+                            ? 'Saving...'
+                            : editingId
+                              ? 'Save Changes'
+                              : 'Add Application'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary btn-sm"
+                          onClick={resetForm}
+                          disabled={isSaving}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
                   </div>
-                  <div className="col-md-4">
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Location (e.g. Orlando, FL)"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                    />
-                  </div>
-                  <div className="col-md-4">
+                )}
+
+                {/* Applications Table Card */}
+                <div className="card p-3 bg-white shadow-sm border-0">
+                  <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <h2 id="applications" className="h5 mb-0">
+                      Applications
+                    </h2>
                     <select
-                      className="form-select"
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
+                      className="form-select form-select-sm w-auto"
+                      aria-label="Filter by status"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
                     >
-                      <option value="Applied">Applied</option>
-                      <option value="Interviewing">Interviewing</option>
-                      <option value="Offer">Offer</option>
-                      <option value="Rejected">Rejected</option>
+                      <option value="All">All Statuses</option>
+                      {APPLICATION_STATUSES.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
                     </select>
                   </div>
-                  <div className="col-md-4">
-                    <input
-                      type="number"
-                      className="form-control"
-                      placeholder="Hourly Pay ($)"
-                      value={salaryHourly}
-                      onChange={(e) => setSalaryHourly(e.target.value)}
+
+                  {isLoadingApps ? (
+                    <div className="text-center text-secondary py-4">
+                      <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                        <span className="visually-hidden">Loading applications...</span>
+                      </div>
+                      Loading your applications...
+                    </div>
+                  ) : appsError ? (
+                    <div className="alert alert-warning d-flex justify-content-between align-items-center mb-0">
+                      <span>{appsError}</span>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-dark"
+                        onClick={() => void refreshApplications()}
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  ) : (
+                    <ApplicationList
+                      applications={filteredApplications}
+                      onEdit={handleStartEdit}
+                      onDelete={(id) => void handleDeleteApplication(id)}
                     />
-                  </div>
-                  <div className="col-md-4">
-                    <input
-                      type="date"
-                      className="form-control"
-                      value={dateApplied}
-                      onChange={(e) => setDateApplied(e.target.value)}
-                    />
-                  </div>
-                </div>             
-              <button type="submit" className="btn btn-primary btn-sm">
-                {editingId ? 'Save Changes' : 'Add Application'}
-              </button>
-
-              {editingId && (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm ms-2"
-                  onClick={() => {
-                    setEditingId(null);
-                    setCompany('');
-                    setRole('');
-                    setLocation('');
-                    setStatus('Applied');
-                    setSalaryHourly('');
-                    setDateApplied('');
-                  }}
-                >
-                  Cancel
-                </button>
-              )}
-              </form>
-            </div>
-
-            {/* Applications Table Section */}
-            <h2 id="applications" className="h4 mb-3">
-              Applications
-            </h2>
-            {loading && <p>Loading applications...</p>}
-
-            {error && (
-              <div className="alert alert-danger">
-                {error}
-              </div>
-            )}
-
-            {!loading && !error && (
-              <ApplicationList
-                applications={applications}
-                onDelete={handleDeleteApplication}
-                onEdit={handleEditApplication}
-              />
-            )}
-          </>
-        ) : (
-          <EmailReviewTab
-            applications={matchedApplications}
-            searchQuery={search}
-            forwardingAddress={forwardingAddress}
-            isLoadingAddress={isLoadingAddress}
-            addressError={addressError}
-            onRetryAddress={() => void refreshForwardingAddress()}
-            imports={imports}
-            isLoadingImports={isLoadingImports}
-            importsError={importsError}
-            approvedCount={approvedCount}
-            dismissedCount={dismissedCount}
-            onRefreshImports={() => void refreshImports()}
-            onFetchDetails={fetchImportDetails}
-            onSaveEdit={editImport}
-            onApprove={approveImport}
-            onDismiss={dismissImport}
+                  )}
+                </div>
+              </>
+            ) : (
+              <EmailReviewTab
+                applications={matchedApplications}
+                searchQuery={search}
+                forwardingAddress={forwardingAddress}
+                isLoadingAddress={isLoadingAddress}
+                addressError={addressError}
+                onRetryAddress={() => void refreshForwardingAddress()}
+                imports={imports}
+                isLoadingImports={isLoadingImports}
+                importsError={importsError}
+                approvedCount={approvedCount}
+                dismissedCount={dismissedCount}
+                onRefreshImports={() => void refreshImports()}
+                onFetchDetails={fetchImportDetails}
+                onSaveEdit={editImport}
+                onApprove={handleApproveAndSync}
+                onDismiss={dismissImport}
               />
             )}
           </main>
