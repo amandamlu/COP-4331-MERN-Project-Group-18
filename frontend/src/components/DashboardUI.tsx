@@ -1,4 +1,4 @@
-import { useState, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import ApplicationList, { type ApplicationData } from './ApplicationList';
 import EmailReviewTab from './EmailReviewTab';
 import { useDashboardApplications } from '../hooks/useDashboardApplications';
@@ -8,12 +8,48 @@ import {
   APPLICATION_STATUSES,
   type EmailImportApprovePayload,
 } from '../types/emailImport';
+import { apiFetch } from '../services/apiClient';
 
 type ActiveTab = 'dashboard' | 'email-review';
+
+interface DashboardStats {
+  totalApplications: number;
+  interviewing: number;
+  offers: number;
+}
 
 function DashboardUI() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [search, setSearch] = useState('');
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [statsVersion, setStatsVersion] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchStats() {
+      try {
+        const data = await apiFetch<DashboardStats>(
+          '/api/applications/stats'
+        );
+
+        if (!cancelled) {
+          setStats(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Failed to load dashboard statistics:', err);
+        }
+      }
+    }
+
+    void fetchStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [statsVersion]);
+
   const [statusFilter, setStatusFilter] = useState('All');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -102,6 +138,7 @@ function DashboardUI() {
       } else {
         await createApplication(payload);
       }
+      setStatsVersion((prev) => prev + 1);
       resetForm();
     } catch (err) {
       setFormError(
@@ -115,8 +152,15 @@ function DashboardUI() {
   }
 
   async function handleDeleteApplication(id: string) {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this application? Its associated contacts will also be deleted.'
+    );
+
+    if (!confirmed) return;
+
     try {
       await deleteApplication(id);
+      setStatsVersion((prev) => prev + 1);
       if (editingId === id) {
         resetForm();
       }
@@ -134,6 +178,7 @@ function DashboardUI() {
       const result = await approveImport(id, payload);
       if (result.ok) {
         syncApprovedApplication(result.application);
+        setStatsVersion((prev) => prev + 1);
       }
       return result;
     },
@@ -246,6 +291,21 @@ function DashboardUI() {
                       {showForm ? 'Close' : 'Add Application'}
                     </button>
                   </div>
+                </div>
+                {/* Dashboard Statistics */}
+                <div className="row g-3 mb-4">
+                  {[
+                    { label: 'Total Applications', value: stats?.totalApplications },
+                    { label: 'Interviewing', value: stats?.interviewing },
+                    { label: 'Offers', value: stats?.offers },
+                  ].map(({ label, value }) => (
+                    <div className="col-md-4" key={label}>
+                      <div className="card shadow-sm p-3 border-0">
+                        <h3 className="h6 text-secondary">{label}</h3>
+                        <h2 className="mb-0">{value ?? '—'}</h2>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 {formError && (

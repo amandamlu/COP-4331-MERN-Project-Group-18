@@ -52,28 +52,29 @@ function ApplicationList({ applications, onEdit, onDelete }: ApplicationListProp
                 <td>{app.salaryHourly ? `$${app.salaryHourly}` : '—'}</td>
                 <td>{app.dateApplied || '—'}</td>
                 <td>
-                  <div className="d-flex gap-1">
-                    {onEdit && (
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-primary"
-                        onClick={() => onEdit(app)}
-                        aria-label={`Edit ${app.company}`}
-                        title="Edit"
-                      >
-                        <i className="bi bi-pencil"></i>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => onDelete(app.id)}
-                      aria-label={`Delete ${app.company}`}
-                      title="Delete"
-                    >
-                      <i className="bi bi-trash"></i>
-                    </button>
-                  </div>
+              <div className="d-flex gap-1">
+                {onEdit && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-primary"
+                    onClick={() => onEdit(app)}
+                    aria-label={`Edit ${app.company}`}
+                    title="Edit"
+                  >
+                    <i className="bi bi-pencil"></i>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-danger"
+                  onClick={() => onDelete(app.id)}
+                  aria-label={`Delete ${app.company}`}
+                  title="Delete"
+                >
+                  <i className="bi bi-trash"></i>
+                </button>
+              </div>
                 </td>
               </tr>
             ))
