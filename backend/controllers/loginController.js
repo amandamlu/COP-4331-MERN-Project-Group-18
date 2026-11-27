@@ -37,6 +37,12 @@ exports.logIn = async (req, res, next) => {
             return res.status(401).json({ error: 'Invalid login or password' });
         }
 
+        if (!user.IsVerified) {
+            return res.status(403).json({
+                error: 'Please verify your email before logging in.'
+            });
+        }
+
         return res.status(200).json({
             message: 'Login successful',
             token: createToken(user),
