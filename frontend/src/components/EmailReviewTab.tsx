@@ -21,8 +21,6 @@ interface EmailReviewTabProps {
   imports: EmailImportRecord[];
   isLoadingImports: boolean;
   importsError: string | null;
-  approvedCount: number;
-  dismissedCount: number;
   onRefreshImports: () => void;
   onFetchDetails: (id: string) => Promise<EmailImportRecord>;
   onSaveEdit: (
@@ -51,8 +49,6 @@ function EmailReviewTab({
   imports,
   isLoadingImports,
   importsError,
-  approvedCount,
-  dismissedCount,
   onRefreshImports,
   onFetchDetails,
   onSaveEdit,
@@ -199,8 +195,6 @@ function EmailReviewTab({
       {/* Pending Email Imports Swipe Deck + Queue */}
       <EmailImportSwipeDeck
         imports={filteredImports}
-        approvedCount={approvedCount}
-        dismissedCount={dismissedCount}
         isLoading={isLoadingImports}
         error={importsError}
         busyId={busyId}

@@ -12,8 +12,6 @@ export type EmailSwipeDirection = 'left' | 'right';
 
 interface EmailImportSwipeDeckProps {
   imports: EmailImportRecord[];
-  approvedCount: number;
-  dismissedCount: number;
   isLoading: boolean;
   error: string | null;
   busyId: string | null;
@@ -28,8 +26,6 @@ const SWIPE_THRESHOLD = 95;
 
 function EmailImportSwipeDeck({
   imports,
-  approvedCount,
-  dismissedCount,
   isLoading,
   error,
   busyId,
@@ -123,19 +119,10 @@ function EmailImportSwipeDeck({
 
   return (
     <div>
-      {/* Soft Status Counter Pills */}
+      {/* Pending Counter Pill */}
       <div className="d-flex flex-wrap gap-2 mb-3">
         <span className="badge rounded-pill bg-white text-dark border fw-medium px-3 py-2">
-          <i className="bi bi-stack text-primary me-1"></i>
           Pending: <strong>{imports.length}</strong>
-        </span>
-        <span className="badge rounded-pill bg-success-subtle text-success-emphasis border border-success-subtle fw-medium px-3 py-2">
-          <i className="bi bi-check-circle me-1"></i>
-          Approved: <strong>{approvedCount}</strong>
-        </span>
-        <span className="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle fw-medium px-3 py-2">
-          <i className="bi bi-x-circle me-1"></i>
-          Dismissed: <strong>{dismissedCount}</strong>
         </span>
       </div>
 

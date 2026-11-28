@@ -77,8 +77,6 @@ function DashboardUI() {
     isLoadingImports,
     importsError,
     matchedApplications,
-    approvedCount,
-    dismissedCount,
     refreshImports,
     fetchImportDetails,
     editImport,
@@ -474,8 +472,6 @@ function DashboardUI() {
                 imports={imports}
                 isLoadingImports={isLoadingImports}
                 importsError={importsError}
-                approvedCount={approvedCount}
-                dismissedCount={dismissedCount}
                 onRefreshImports={() => void refreshImports()}
                 onFetchDetails={fetchImportDetails}
                 onSaveEdit={editImport}
