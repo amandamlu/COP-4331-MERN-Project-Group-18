@@ -103,9 +103,18 @@ const LoginPage = () => {
             </p>
           )}
 
-          <p className="text-center mt-3">
+          <p className="text-center mt-3 mb-1">
+            <Link to="/reset-password">Forgot password?</Link>
+          </p>
+
+          <p className="text-center mt-2">
             Don't have an account?{' '}
             <Link to="/register">Create an account</Link>
+          </p>
+
+          <p className="text-center mt-1 small">
+            Need a new verification link?{' '}
+            <Link to="/verify-email">Resend verification</Link>
           </p>
 
         </form>

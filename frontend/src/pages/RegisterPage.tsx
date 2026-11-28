@@ -64,7 +64,7 @@ const RegisterPage = () => {
             const data = await response.json();
 
             if (response.ok) {
-                setMessage('Account created successfully!');
+                setMessage('Account created! Please check your email to verify your account before signing in.');
             } else {
                 setError(data.error || 'Registration failed.');
             }
